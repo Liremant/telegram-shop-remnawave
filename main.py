@@ -13,9 +13,7 @@ dp = Dispatcher()
 
 async def main() -> None:
     config = BaseConfig()
-    telegram_token = (
-        config.get_telegram_token()
-    )  # getting telegram token IT'S NOT GPT 
+    telegram_token = (config.get_telegram_token()) 
     bot = Bot(
         token=telegram_token,
         default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2),
