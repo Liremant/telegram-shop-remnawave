@@ -4,7 +4,7 @@ from aiogram.client.default import DefaultBotProperties
 from config.dotenv import BaseConfig
 from config.locale import Locale
 from middleware import LocaleMiddleware
-from handlers.user.user_handlers import userRouter
+from handlers.user.user_handlers import user_router
 import asyncio
 
 
@@ -21,7 +21,7 @@ async def main() -> None:
     locale = Locale()
     middleware = LocaleMiddleware(locale)
 
-    dp.include_router(userRouter)
+    dp.include_router(user_router)
     dp.update.outer_middleware(middleware)
     await dp.start_polling(bot)
 

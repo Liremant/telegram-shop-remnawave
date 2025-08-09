@@ -20,7 +20,6 @@ def main_menu_kb(locale):
 
 
 def rates_kb(locale, config: Optional[BaseConfig] = None):
-
     if config is None:
         config = BaseConfig()
     
@@ -28,21 +27,16 @@ def rates_kb(locale, config: Optional[BaseConfig] = None):
         rates = config.get_rates()
         buttons = []
         
-
         for rate_key, rate_data in rates.items():
-
             button_text = f"{rate_data['name']} - {rate_data['value']}"
-
             callback_data = f"select_{rate_key}"
             
             button = InlineKeyboardButton(
                 text=button_text,
                 callback_data=callback_data
             )
-
             buttons.append([button])
         
-
         back_button = InlineKeyboardButton(
             text=locale.get('back') if hasattr(locale, 'get') and callable(locale.get) else '⬅️ Назад',
             callback_data="back_to_main"
@@ -52,7 +46,6 @@ def rates_kb(locale, config: Optional[BaseConfig] = None):
         return InlineKeyboardMarkup(inline_keyboard=buttons)
     
     except ValueError as e:
-
         error_button = InlineKeyboardButton(
             text=locale.get('error_loading_rates') if hasattr(locale, 'get') and callable(locale.get) else 'Ошибка загрузки тарифов',
             callback_data="error_rates"
@@ -65,7 +58,6 @@ def rates_kb(locale, config: Optional[BaseConfig] = None):
 
 
 def rates_kb_compact(locale, config: Optional[BaseConfig] = None, rates_per_row: int = 1):
-
     if config is None:
         config = BaseConfig()
     
@@ -105,7 +97,6 @@ def rates_kb_compact(locale, config: Optional[BaseConfig] = None, rates_per_row:
 
 
 def rate_confirmation_kb(locale, rate_key: str, rate_data: Dict[str, str]):
-
     confirm_text = (locale.get('confirm_purchase') 
                    if hasattr(locale, 'get') and callable(locale.get) 
                    else f'✅ Купить {rate_data["name"]}')
@@ -140,7 +131,6 @@ def rate_confirmation_kb(locale, rate_key: str, rate_data: Dict[str, str]):
 
 
 def payment_methods_kb(locale, rate_key: str):
-
     pay_card_text = (locale.get('pay_card') 
                     if hasattr(locale, 'get') and callable(locale.get) 
                     else '💳 Банковская карта')
@@ -185,7 +175,6 @@ def payment_methods_kb(locale, rate_key: str):
 
 
 def rates_kb_dict_locale(locale_dict: Dict[str, str], config: Optional[BaseConfig] = None):
-
     if config is None:
         config = BaseConfig()
     
@@ -221,6 +210,3 @@ def rates_kb_dict_locale(locale_dict: Dict[str, str], config: Optional[BaseConfi
             callback_data="back_to_main"
         )
         return InlineKeyboardMarkup(inline_keyboard=[[error_button], [back_button]])
-
-
-

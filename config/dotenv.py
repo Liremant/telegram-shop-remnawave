@@ -14,7 +14,6 @@ class BaseConfig:
         return token
     
     def _format_rate(self, rate_value: Union[str, int, float]) -> str:
-
         if rate_value is None:
             return "0"
         
@@ -30,26 +29,31 @@ class BaseConfig:
 
         rate_1_value = os.getenv("RATE")
         rate_1_name = os.getenv("RATE_NAME", "Тариф 1")
+        rate_1_desc = os.getenv("RATE_DESC", "")
         
         if rate_1_value is None:
             raise ValueError("RATE is not set in environment")
         
         rates["rate_1"] = {
             "value": self._format_rate(rate_1_value),
-            "name": rate_1_name
+            "name": rate_1_name,
+            "desc": rate_1_desc
         }
         
         for i in range(2, 10):
             rate_key = f"RATE_{i}"
             rate_name_key = f"RATE{i}_NAME"
+            rate_desc_key = f"RATE{i}_DESC"
             
             rate_value = os.getenv(rate_key)
-            rate_name = os.getenv(rate_name_key, f"Тариф {i}") 
+            rate_name = os.getenv(rate_name_key, f"Тариф {i}")
+            rate_desc = os.getenv(rate_desc_key, "")
             
             if rate_value is not None:
                 rates[f"rate_{i}"] = {
                     "value": self._format_rate(rate_value),
-                    "name": rate_name
+                    "name": rate_name,
+                    "desc": rate_desc
                 }
         
         return rates
@@ -65,5 +69,7 @@ class BaseConfig:
     def get_all_rate_names(self) -> Dict[str, str]:
         rates = self.get_rates()
         return {key: data["name"] for key, data in rates.items()}
-
-
+    
+    def get_all_rate_descs(self) -> Dict[str, str]:
+        rates = self.get_rates()
+        return {key: data["desc"] for key, data in rates.items()}
