@@ -5,6 +5,7 @@ from keyboards.user_keyboards import main_menu_kb, rates_kb, payment_methods_kb
 from config.locale import Locale , escape_markdown_v2
 from config.dotenv import RateConfig
 import logging
+from database.req import create_user
 
 logger = logging.getLogger('__main__')
 user_router = Router()
@@ -14,6 +15,8 @@ user_router = Router()
 async def start(message: Message, locale: Locale):
     greeting = locale.get('greeting', message)
     logger.info(f'user {message.from_user.username} started bot. id={message.from_user.id}')
+    await create_user(username=message.from_user.username, name=message.from_user.full_name,telegram_id=message.from_user.id)
+    logger.info(f'user added into db')
     await message.answer(greeting, reply_markup=main_menu_kb(locale))
 
 @user_router.callback_query(F.data == 'buy_sub')
