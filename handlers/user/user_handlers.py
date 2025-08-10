@@ -3,12 +3,17 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart
 from keyboards.user_keyboards import main_menu_kb, rates_kb, payment_methods_kb
 from config.locale import Locale , escape_markdown_v2
-from config.dotenv import BaseConfig 
+from config.dotenv import RateConfig
+import logging
+
+logger = logging.getLogger('__main__')
 user_router = Router()
+
 
 @user_router.message(CommandStart())
 async def start(message: Message, locale: Locale):
     greeting = locale.get('greeting', message)
+    logger.info(f'user {message.from_user.username} started bot. id={message.from_user.id}')
     await message.answer(greeting, reply_markup=main_menu_kb(locale))
 
 @user_router.callback_query(F.data == 'buy_sub')
@@ -20,7 +25,7 @@ async def buy_sub(callback: CallbackQuery, locale: Locale):
 @user_router.callback_query(F.data.startswith('select_rate_'))
 async def confirm_purchase(callback: CallbackQuery, locale: Locale):
     await callback.answer()
-    config = BaseConfig()
+    config = RateConfig()
     rate_key = callback.data.replace('select_rate_', '')
     rate_number = int(rate_key)
     confirm_purchase_locale = locale.get('confirm_purchase', callback.message)
