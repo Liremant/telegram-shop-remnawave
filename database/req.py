@@ -6,12 +6,16 @@ from database.db import User, Sublink ,get_session
 
 
 async def create_user(username: str, telegram_id: int, name: str) -> User:
-    async with get_session() as session:  # type: ignore
+    async with get_session() as session:
+        existing = await get_user_by_telegram_id(telegram_id)
+        if existing:
+            return False
+            
         user = User(username=username, telegram_id=telegram_id, name=name)
         session.add(user)
         await session.commit()
         await session.refresh(user)
-        return user
+        return True
 
 async def get_user_by_id(user_id: int) -> Optional[User]:
     async with get_session() as session:  # type: ignore
@@ -26,7 +30,7 @@ async def get_user_by_telegram_id(telegram_id: int) -> Optional[User]:
         return result.scalars().first()
 
 async def get_all_users() -> List[User]:
-    async with get_session() as session:  # type: ignore
+    async with get_session() as session: 
         stmt = select(User)
         result = await session.execute(stmt)
         return result.scalars().all()

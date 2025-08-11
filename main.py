@@ -4,17 +4,17 @@ from aiogram.client.default import DefaultBotProperties
 from config.dotenv import EnvConfig
 from config.locale import Locale
 from middleware import LocaleMiddleware
-from handlers.user.user_handlers import user_router
+from handlers.user_handlers import user_router
 from database.db import init_db
 import asyncio
 import logging
 import os
+from initialize_remnawave import create_remnawave_client
 
 dp = Dispatcher()
 
 
 def setup_logging():
-
     if not os.path.exists("logs"):
         os.makedirs("logs")
 
@@ -27,7 +27,7 @@ def setup_logging():
     logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
     logging.getLogger("sqlalchemy.pool").setLevel(logging.WARNING)
 
-    logging.getLogger("aiogram").setLevel(logging.ERROR)
+    logging.getLogger("aiogram").setLevel(logging.INFO)
 
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
@@ -42,7 +42,6 @@ logger = setup_logging()
 
 
 async def main() -> None:
-
     logger.info("bot initializing...")
     config = EnvConfig()
     telegram_token = config.get_telegram_token()
@@ -50,6 +49,9 @@ async def main() -> None:
         token=telegram_token,
         default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2),
     )
+    logger.info("panel connecting...")
+    remnawave = create_remnawave_client()
+    dp.workflow_data["remnawave"] = remnawave
     locale = Locale()
     middleware = LocaleMiddleware(locale)
 
@@ -57,8 +59,8 @@ async def main() -> None:
     dp.update.outer_middleware(middleware)
 
     await dp.start_polling(bot)
+    await init_db()
 
 
 if __name__ == "__main__":
-    asyncio.run(init_db())
     asyncio.run(main())
