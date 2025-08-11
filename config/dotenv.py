@@ -18,10 +18,11 @@ class EnvConfig:
         return token
 
     def get_remnawave_data(self):
-        token = os.getenv('REMNAWAVE_TOKEN')
-        panel_url = os.getenv('PANEL_URL')
-    
-        return token,panel_url
+        token = os.getenv("REMNAWAVE_TOKEN")
+        panel_url = os.getenv("PANEL_URL")
+
+        return token, panel_url
+
 
 class GetDatabase:
     @staticmethod
