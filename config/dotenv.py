@@ -3,7 +3,9 @@ from dotenv import load_dotenv, find_dotenv, set_key
 from typing import Dict, Union, Optional
 import secrets
 import string
+import logging
 
+logger = logging.getLogger(__name__)
 
 class EnvConfig:
     def __init__(self, env_file=".env"):
@@ -22,6 +24,13 @@ class EnvConfig:
         panel_url = os.getenv("PANEL_URL")
 
         return token, panel_url
+    
+    def get_cryptobot_data(self):
+        token = os.getenv('CRYPTOBOT_TOKEN')
+        currency = os.getenv("RATE_CURRENCY", "RUB")
+
+
+        return token, currency
 
 
 class GetDatabase:
@@ -49,7 +58,7 @@ class GetDatabase:
 
 class RateConfig:
     def __init__(self, env_config: Optional[EnvConfig] = None):
-        self.env_config = env_config or EnvConfig()
+        self.env_config = EnvConfig()
 
     def _format_rate(self, rate_value: Union[str, int, float]) -> str:
         if rate_value is None:
@@ -109,3 +118,17 @@ class RateConfig:
     def get_all_rate_descs(self) -> Dict[str, str]:
         rates = self.get_rates()
         return {key: data["desc"] for key, data in rates.items()}
+    def get_value_by_number(self, rate_number: int) -> Optional[str]:
+        load_dotenv()  
+        key = "RATE" if int(rate_number) == 1 else f"RATE_{rate_number}"
+        rate_value = os.getenv(key)
+
+        if rate_value is None:
+            logger.error(f"key not found:{key}")
+            return None
+
+        if rate_value is None:
+            logger.info("БЛЯТЬ МЫ В ДЕРЬМЕ")
+            return None
+
+        return rate_value

@@ -178,6 +178,13 @@ def payment_methods_kb(locale, rate_key: str):
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
+def crypto_button(locale, pay_link):
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=locale.get('pay'), url=pay_link)]
+        ]
+    )
+    return keyboard
 
 def rates_kb_dict_locale(
     locale_dict: Dict[str, str], config: Optional[RateConfig] = None
