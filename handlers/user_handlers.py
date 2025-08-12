@@ -61,7 +61,7 @@ async def confirm_purchase(callback: CallbackQuery, locale: Locale):
     )
 
 
-@user_router.message(Command("sub"))
+@user_router.message(Command("buy_sub"))
 async def generate_sub(message: Message, remnawave: RemnawaveSDK):
     user = UserManager(remnawave)
     logger.info(f"{message.from_user.id},{message.from_user.username}")
@@ -72,11 +72,27 @@ async def generate_sub(message: Message, remnawave: RemnawaveSDK):
 
 
 @user_router.callback_query(F.data=="show_sub")
-async def show_sub(callback: CallbackQuery,remnawave: RemnawaveSDK):
+async def show_sub(callback: CallbackQuery,remnawave: RemnawaveSDK,locale: Locale):
     user = UserManager(remnawave)
-    ans = await user.get_subscription(callback.from_user.id)
-    logger.info(ans)
+    ans = await user.get_subscription(str(callback.from_user.id))
+    logger.debug(f'subscrption get from api:{ans}')
+    answer = ""
+    for i, subscription in enumerate(ans):
+        name = subscription.username
+        expires = subscription.expire_at
+        used_traffic = f"{subscription.used_traffic_bytes / 1024**3:.2f} GB"
+        traffic_limit = f"{subscription.traffic_limit_bytes / 1024**3:.2f} GB" if subscription.traffic_limit_bytes > 0 else "∞"
+        sub_url = subscription.subscription_url
+        
+        status_map = {
+            "ACTIVE": "active",
+            "EXPIRED": "expired", 
+            "DISABLED": "disabled"
+        }
+        status = status_map.get(subscription.status.value, "unknown")
+        
+        answer += f"{locale.get('sub')} {i+1}\n{locale.get('expires')}\\: {expires}\n{locale.get('sub_url')}\\: {sub_url}\n{locale.get('traffic_used')}\\: {used_traffic}\n{locale.get('traffic_limit')}\\: {traffic_limit}\n{locale.get('status')}\\: {status}\n\n"        
     try:
-        await callback.message.answer(ans)
+        await callback.message.answer(escape_markdown_v2(answer))
     except Exception as e:
         logger.error(f'err: {e}')
