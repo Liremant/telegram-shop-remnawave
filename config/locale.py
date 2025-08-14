@@ -38,7 +38,7 @@ class Locale:
                 "GB": "GB",
                 "sub_url": "Subscription url",
                 "traffic_used": "Traffic used",
-                "traffic_limit": "Traffic limit", 
+                "traffic_limit": "Traffic limit",
                 "status": "Status",
             },
             "ru": {

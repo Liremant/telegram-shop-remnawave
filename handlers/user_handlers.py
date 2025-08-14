@@ -1,7 +1,12 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart, Command
-from keyboards.user_keyboards import main_menu_kb, rates_kb, payment_methods_kb, crypto_button
+from keyboards.user_keyboards import (
+    main_menu_kb,
+    rates_kb,
+    payment_methods_kb,
+    crypto_button,
+)
 from config.locale import Locale, escape_markdown_v2
 from config.dotenv import RateConfig, EnvConfig
 import logging
@@ -11,6 +16,7 @@ from api.cryptobot import CryptoPayAPIClient
 from remnawave import RemnawaveSDK
 import json
 from aiogram.utils.text_decorations import markdown_decoration as md
+
 logger = logging.getLogger("__main__")
 user_router = Router()
 
@@ -43,34 +49,31 @@ async def buy_sub(callback: CallbackQuery, locale: Locale):
     )
 
 
-
-
-
-
-@user_router.callback_query(F.data=="show_sub")
-async def show_sub(callback: CallbackQuery,remnawave: RemnawaveSDK,locale: Locale):
+@user_router.callback_query(F.data == "show_sub")
+async def show_sub(callback: CallbackQuery, remnawave: RemnawaveSDK, locale: Locale):
     user = UserManager(remnawave)
     ans = await user.get_subscription(str(callback.from_user.id))
-    logger.debug(f'subscrption get from api:{ans}')
+    logger.debug(f"subscrption get from api:{ans}")
     answer = ""
     for i, subscription in enumerate(ans):
         expires = subscription.expire_at
         used_traffic = f"{subscription.used_traffic_bytes / 1024**3:.2f} GB"
-        traffic_limit = f"{subscription.traffic_limit_bytes / 1024**3:.2f} GB" if subscription.traffic_limit_bytes > 0 else "∞"
+        traffic_limit = (
+            f"{subscription.traffic_limit_bytes / 1024**3:.2f} GB"
+            if subscription.traffic_limit_bytes > 0
+            else "∞"
+        )
         sub_url = subscription.subscription_url
-        
-        status_map = {
-            "ACTIVE": "active",
-            "EXPIRED": "expired", 
-            "DISABLED": "disabled"
-        }
+
+        status_map = {"ACTIVE": "active", "EXPIRED": "expired", "DISABLED": "disabled"}
         status = status_map.get(subscription.status.value, "unknown")
-        
-        answer += f"{locale.get('sub')} {i+1}\n{locale.get('expires')}\\: {expires}\n{locale.get('sub_url')}\\: {sub_url}\n{locale.get('traffic_used')}\\: {used_traffic}\n{locale.get('traffic_limit')}\\: {traffic_limit}\n{locale.get('status')}\\: {status}\n\n"        
+
+        answer += f"{locale.get('sub')} {i+1}\n{locale.get('expires')}\\: {expires}\n{locale.get('sub_url')}\\: {sub_url}\n{locale.get('traffic_used')}\\: {used_traffic}\n{locale.get('traffic_limit')}\\: {traffic_limit}\n{locale.get('status')}\\: {status}\n\n"
     try:
         await callback.message.answer(escape_markdown_v2(answer))
     except Exception as e:
-        logger.error(f'err: {e}')
+        logger.error(f"err: {e}")
+
 
 @user_router.callback_query(F.data.startswith("select_rate_"))
 async def confirm_purchase(callback: CallbackQuery, locale: Locale):
@@ -91,7 +94,6 @@ async def confirm_purchase(callback: CallbackQuery, locale: Locale):
     )
 
 
-
 @user_router.callback_query(F.data.startswith("pay_crypto"))
 async def generate_invoice(callback: CallbackQuery, locale: Locale):
     config = EnvConfig()
@@ -99,8 +101,7 @@ async def generate_invoice(callback: CallbackQuery, locale: Locale):
     rate_key = callback.data.replace("pay_crypto_", "")
     value = rates.get_value_by_number(rate_key)
 
-
-    API_TOKEN,currency=config.get_cryptobot_data()
+    API_TOKEN, currency = config.get_cryptobot_data()
     client = CryptoPayAPIClient(api_token=API_TOKEN)
     invoice_data = client.create_invoice(
         asset="USDT",
@@ -109,10 +110,14 @@ async def generate_invoice(callback: CallbackQuery, locale: Locale):
         hidden_message="Thank you for your purchase!",
         expires_in=3600,
         currency_type="fiat",
-        fiat=currency
+        fiat=currency,
     )
     if invoice_data and invoice_data.get("ok"):
         text = md.quote(f'{locale.get("pay_by_this_link")}')
         pay_link = invoice_data["result"]["pay_url"]
-        logger.info(f"Invoice successfully created:{json.dumps(invoice_data, indent=4)} Payment URL: {invoice_data['result']['pay_url']}")
-        await callback.message.answer(text,reply_markup=crypto_button(locale,pay_link))
+        logger.info(
+            f"Invoice successfully created:{json.dumps(invoice_data, indent=4)} Payment URL: {invoice_data['result']['pay_url']}"
+        )
+        await callback.message.answer(
+            text, reply_markup=crypto_button(locale, pay_link)
+        )

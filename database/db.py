@@ -48,6 +48,16 @@ class Sublink(Base, TimestampMixin):
     rate: Mapped[int] = mapped_column(Integer)
 
 
+class Invoice(Base, TimestampMixin):
+    __tablename__ = "invoices"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    status: Mapped[bool] = mapped_column()
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True)
+    platform: Mapped[str] = mapped_column(String(100))
+    rate: Mapped[int] = mapped_column(Integer)
+
+
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

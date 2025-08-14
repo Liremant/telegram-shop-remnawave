@@ -51,13 +51,13 @@ class UserManager:
         logger.info(f"Subscription updated for user {user.id}")
         return updated_user
 
-    async def get_subscription(self,telegram_id: str):
+    async def get_subscription(self, telegram_id: str):
         try:
-            logger.info(f'trying to get user by telgram id:{telegram_id}')
-            response: TelegramUserResponseDto = await self.client.users.get_users_by_telegram_id(telegram_id)
+            logger.info(f"trying to get user by telgram id:{telegram_id}")
+            response: TelegramUserResponseDto = (
+                await self.client.users.get_users_by_telegram_id(telegram_id)
+            )
             logger.info(response)
             return response
         except Exception as e:
-            logger.error(f'error while getting user:{e}')
-
-        
+            logger.error(f"error while getting user:{e}")

@@ -1,7 +1,7 @@
 from sqlalchemy import select, delete, update
 from datetime import datetime
 from typing import Optional, List
-from database.db import User, Sublink, get_session
+from database.db import User, Sublink, Invoice, get_session
 
 
 async def create_user(username: str, telegram_id: int, name: str) -> User:
@@ -98,6 +98,47 @@ async def update_sublink(sublink_id: int, **kwargs) -> Optional[Sublink]:
 async def delete_sublink(sublink_id: int) -> bool:
     async with get_session() as session:
         stmt = delete(Sublink).where(Sublink.id == sublink_id)
+        result = await session.execute(stmt)
+        await session.commit()
+        return result.rowcount > 0
+
+
+async def create_invoice(
+    status: bool, user_id: int, platform: str, rate: int
+) -> Invoice:
+    async with get_session() as session:
+        invoice = Invoice(status=status, user_id=user_id, platform=platform, rate=rate)
+        session.add(invoice)
+        await session.commit()
+        await session.refresh(invoice)
+        return invoice
+
+
+async def get_invoice_by_id(invoice_id: int) -> Optional[Invoice]:
+    async with get_session() as session:
+        stmt = select(Invoice).where(Invoice.id == invoice_id)
+        result = await session.execute(stmt)
+        return result.scalars().first()
+
+
+async def get_invoices_by_user_id(user_id: int) -> List[Invoice]:
+    async with get_session() as session:
+        stmt = select(Invoice).where(Invoice.user_id == user_id)
+        result = await session.execute(stmt)
+        return result.scalars().all()
+
+
+async def update_invoice(invoice_id: int, **kwargs) -> Optional[Invoice]:
+    async with get_session() as session:
+        stmt = update(Invoice).where(Invoice.id == invoice_id).values(**kwargs)
+        await session.execute(stmt)
+        await session.commit()
+        return await get_invoice_by_id(invoice_id)
+
+
+async def delete_invoice(invoice_id: int) -> bool:
+    async with get_session() as session:
+        stmt = delete(Invoice).where(Invoice.id == invoice_id)
         result = await session.execute(stmt)
         await session.commit()
         return result.rowcount > 0

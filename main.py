@@ -21,6 +21,7 @@ from initialize_remnawave import create_remnawave_client
 
 dp = Dispatcher()
 
+
 def setup_logging():
     if not os.path.exists("logs"):
         os.makedirs("logs")
@@ -29,10 +30,19 @@ def setup_logging():
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[logging.FileHandler("logs/app.log"), logging.StreamHandler()],
     )
-    for logger_name in ["sqlalchemy", "sqlalchemy.engine", "sqlalchemy.pool", "httpx", "httpcore", "urllib3", "asyncio"]:
+    for logger_name in [
+        "sqlalchemy",
+        "sqlalchemy.engine",
+        "sqlalchemy.pool",
+        "httpx",
+        "httpcore",
+        "urllib3",
+        "asyncio",
+    ]:
         logging.getLogger(logger_name).setLevel(logging.WARNING)
     logging.getLogger("aiogram").setLevel(logging.INFO)
     return logging.getLogger(__name__)
+
 
 logger = setup_logging()
 

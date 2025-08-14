@@ -29,8 +29,29 @@ class EnvConfig:
         token = os.getenv('CRYPTOBOT_TOKEN')
         currency = os.getenv("RATE_CURRENCY", "RUB")
 
-
         return token, currency
+
+    
+    def get_use_webhook(self) -> bool:
+        return os.getenv("USE_WEBHOOK", "false").lower() == "true"
+
+    def get_webhook_url(self) -> str:
+        url = os.getenv("WEBHOOK_URL", "")
+        if not url and self.get_use_webhook():
+            raise ValueError("WEBHOOK_URL must be set when using webhooks")
+        return url
+
+    def get_webhook_path(self) -> str:
+        return os.getenv("WEBHOOK_PATH", "/webhook")
+
+    def get_webhook_secret(self) -> str:
+        return os.getenv("WEBHOOK_SECRET", "your_secret_token_here")
+
+    def get_webhook_host(self) -> str:
+        return os.getenv("WEBHOOK_HOST", "0.0.0.0")
+
+    def get_webhook_port(self) -> int:
+        return int(os.getenv("WEBHOOK_PORT", "8080"))
 
 
 class GetDatabase:
