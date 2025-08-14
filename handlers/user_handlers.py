@@ -9,7 +9,7 @@ from keyboards.user_keyboards import (
     show_months
 )
 from config.locale import Locale, escape_markdown_v2
-from config.dotenv import RateConfig, EnvConfig
+from config.dotenv import RateConfig
 import logging
 from database.req import create_user,get_user_by_telegram_id
 from api.user_manager import UserManager
@@ -132,3 +132,8 @@ async def show_sub(callback: CallbackQuery, remnawave: RemnawaveSDK, locale: Loc
         await callback.message.answer(escape_markdown_v2(answer))
     except Exception as e:
         logger.error(f"err: {e}")
+
+@user_router.callback_query(F.data == "show_ballance")
+async def show_balance(callback: CallbackQuery, locale: Locale):
+    await callback.answer()
+    ballance = 

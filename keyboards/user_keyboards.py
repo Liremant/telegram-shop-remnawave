@@ -8,6 +8,7 @@ def main_menu_kb(locale):
         [
             InlineKeyboardButton(text=locale.get("buy_sub"), callback_data="buy_sub"),
             InlineKeyboardButton(text=locale.get("show_sub"), callback_data="show_sub"),
+            InlineKeyboardButton(text=locale.get("show_ballance"),callback_data="show_balance")
         ]
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -166,7 +167,8 @@ def payment_methods_kb(locale, rate_key: str, months):
                 text=pay_card_text, callback_data=f"pay_card_{rate_key}_{months}"
             ),
             InlineKeyboardButton(
-                text=pay_crypto_text, callback_data=f"pay_crypto_{rate_key}_{months}"
+                text=pay_crypto_text, callback_data=f"pay_crypto_{rate_key}_{months
+                }"
             ),
         ],
         [
