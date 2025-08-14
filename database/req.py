@@ -104,8 +104,7 @@ async def delete_sublink(sublink_id: int) -> bool:
 
 
 async def create_invoice(
-    status: bool, user_id: int, platform: str, rate: int
-) -> Invoice:
+    status: bool, user_id: int, platform: str, rate: int) -> Invoice:
     async with get_session() as session:
         invoice = Invoice(status=status, user_id=user_id, platform=platform, rate=rate)
         session.add(invoice)

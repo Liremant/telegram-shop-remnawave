@@ -1,16 +1,12 @@
 import asyncio
 import logging
 import os
-from contextlib import asynccontextmanager
-import hmac
 
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
-from aiogram.types import Update
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse
-import uvicorn
+from aiohttp import web
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
 from config.dotenv import EnvConfig
 from config.locale import Locale
@@ -19,6 +15,7 @@ from handlers.user_handlers import user_router
 from database.db import init_db
 from initialize_remnawave import create_remnawave_client
 
+from api.cryptobot import setup_crypto_webhook
 dp = Dispatcher()
 
 
@@ -32,7 +29,7 @@ def setup_logging():
     )
     for logger_name in [
         "sqlalchemy",
-        "sqlalchemy.engine",
+        "sqlalchemy.engine", 
         "sqlalchemy.pool",
         "httpx",
         "httpcore",
@@ -70,6 +67,20 @@ async def setup_bot():
     return bot, config
 
 
+async def cleanup_bot(bot):
+    try:
+        await bot.delete_webhook()
+    except Exception:
+        pass
+    try:
+        await bot.session.close()
+    except Exception:
+        try:
+            await bot.close()
+        except Exception:
+            pass
+
+
 async def run_polling(bot):
     logger.info("starting polling...")
     try:
@@ -77,92 +88,77 @@ async def run_polling(bot):
     except asyncio.CancelledError:
         pass
     finally:
-        try:
-            await bot.delete_webhook()
-        except Exception:
-            pass
-        try:
-            await bot.session.close()
-        except Exception:
-            try:
-                await bot.close()
-            except Exception:
-                pass
+        await cleanup_bot(bot)
 
 
 async def run_webhook(bot, config):
-    @asynccontextmanager
-    async def lifespan(app: FastAPI):
-        webhook_url = f"{config.get_webhook_url()}{config.get_webhook_path()}"
-        try:
-            await bot.set_webhook(
-                url=webhook_url,
-                allowed_updates=dp.resolve_used_update_types(),
-                drop_pending_updates=True,
-                secret_token=config.get_webhook_secret(),
-            )
-            logger.info(f"webhook set: {webhook_url}")
-            yield
-        except Exception as e:
-            logger.exception(e)
-            yield
-        finally:
-            try:
-                await bot.delete_webhook()
-            except Exception:
-                pass
-            try:
-                await bot.session.close()
-            except Exception:
-                try:
-                    await bot.close()
-                except Exception:
-                    pass
+    app = web.Application()
+    
+    SimpleRequestHandler(
+        dispatcher=dp,
+        bot=bot,
+        secret_token=config.get_webhook_secret()
+    ).register(app, path=config.get_webhook_path())
+    
+    setup_application(app, dp, bot=bot)
+    
+    setup_crypto_webhook(app)
 
-    def verify_telegram_secret(request: Request, expected_secret: str):
-        token = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
-        if not token or not hmac.compare_digest(token, expected_secret):
-            client = "unknown"
-            try:
-                client = request.client[0] if request.client else "unknown"
-            except Exception:
-                client = "unknown"
-            logger.warning("unauthorized webhook access attempt from %s", client)
-            raise HTTPException(status_code=401, detail="Unauthorized")
-
-    app = FastAPI(lifespan=lifespan)
-
-    @app.post(config.get_webhook_path())
-    async def webhook_handler(request: Request):
-        try:
-            verify_telegram_secret(request, config.get_webhook_secret())
-            json_data = await request.json()
-            update = Update.model_validate(json_data, context={"bot": bot})
-            await dp.feed_update(bot, update)
-            return JSONResponse(status_code=200, content={"ok": True})
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.exception(e)
-            return JSONResponse(status_code=500, content={"ok": False})
-
-    logger.info("starting webhook server...")
-    uvicorn_config = uvicorn.Config(
-        app=app,
-        host=config.get_webhook_host(),
-        port=config.get_webhook_port(),
-        log_config=None,
+    webhook_url = f"{config.get_webhook_url()}{config.get_webhook_path()}"
+    await bot.set_webhook(
+        url=webhook_url,
+        allowed_updates=dp.resolve_used_update_types(),
+        drop_pending_updates=True,
+        secret_token=config.get_webhook_secret(),
     )
-    server = uvicorn.Server(uvicorn_config)
-    await server.serve()
+    logger.info(f"webhook set: {webhook_url}")
+    
+    runner = web.AppRunner(app)
+    await runner.setup()
+    
+    site = web.TCPSite(
+        runner, 
+        config.get_webhook_host(), 
+        config.get_webhook_port()
+    )
+    
+    logger.info(f"starting webhook server on {config.get_webhook_host()}:{config.get_webhook_port()}")
+    await site.start()
+    
+    shutdown_event = asyncio.Event()
+    
+    def signal_handler():
+        shutdown_event.set()
+    
+    if hasattr(asyncio, 'get_running_loop'):
+        loop = asyncio.get_running_loop()
+        import signal
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            loop.add_signal_handler(sig, signal_handler)
+    
+    try:
+        await shutdown_event.wait()
+    except asyncio.CancelledError:
+        pass
+    finally:
+        logger.info("shutting down webhook server...")
+        await cleanup_bot(bot)
+        await runner.cleanup()
 
 
 async def main():
     bot, config = await setup_bot()
-    if config.get_use_webhook():
-        await run_webhook(bot, config)
-    else:
-        await run_polling(bot)
+    try:
+        if config.get_use_webhook():
+            await run_webhook(bot, config)
+        else:
+            await run_polling(bot)
+    except KeyboardInterrupt:
+        logger.info("received keyboard interrupt")
+    except Exception as e:
+        logger.exception(f"unexpected error: {e}")
+    finally:
+        logger.info("bot stopped")
 
 
 if __name__ == "__main__":

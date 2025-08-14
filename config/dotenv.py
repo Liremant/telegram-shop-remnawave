@@ -81,15 +81,13 @@ class RateConfig:
     def __init__(self, env_config: Optional[EnvConfig] = None):
         self.env_config = EnvConfig()
 
-    def _format_rate(self, rate_value: Union[str, int, float]) -> str:
-        if rate_value is None:
-            return "0"
+    def _format_rate(self) -> str:
         currency = os.getenv("RATE_CURRENCY", "RUB")
         if currency == "RUB":
-            return f"{rate_value}₽"
+            return "₽"
         elif currency:
-            return f"{rate_value} {currency}"
-        return str(rate_value)
+            return currency
+
 
     def get_rates(self) -> Dict[str, Dict[str, str]]:
         rates = {}
@@ -101,7 +99,8 @@ class RateConfig:
             raise ValueError("RATE is not set in environment")
 
         rates["rate_1"] = {
-            "value": self._format_rate(rate_1_value),
+            "value": rate_1_value,
+            "currency":self._format_rate(),
             "name": rate_1_name,
             "desc": rate_1_desc,
         }
@@ -117,7 +116,8 @@ class RateConfig:
 
             if rate_value is not None:
                 rates[f"rate_{i}"] = {
-                    "value": self._format_rate(rate_value),
+                    "value": rate_value,
+                    "currency": self._format_rate(),
                     "name": rate_name,
                     "desc": rate_desc,
                 }
