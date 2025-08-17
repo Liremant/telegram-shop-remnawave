@@ -6,21 +6,26 @@ from keyboards.user_keyboards import (
     rates_kb,
     payment_methods_kb,
     crypto_button,
-    show_months
+    show_months,
+    topup_balance
 )
-from config.locale import Locale, escape_markdown_v2
+from config.locale import Locale
 from config.dotenv import RateConfig
 import logging
-from database.req import create_user,get_user_by_telegram_id
+from events import event_bus
+from database.req import UserRequests, InvoiceRequests
 from api.user_manager import UserManager
 from api.cryptobot import CryptoBotWebhook
 from remnawave import RemnawaveSDK
-import json
-from aiogram.utils.text_decorations import markdown_decoration as md
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 
 logger = logging.getLogger("__main__")
 user_router = Router()
 
+
+class PaymentStates(StatesGroup):
+    waiting_amount = State()
 
 @user_router.message(CommandStart())
 async def start(message: Message, locale: Locale):
@@ -28,7 +33,8 @@ async def start(message: Message, locale: Locale):
     logger.info(
         f"user {message.from_user.username} started bot. id={message.from_user.id}"
     )
-    user = await create_user(
+    client = UserRequests
+    user = await client.create_user(
         username=message.from_user.username,
         name=message.from_user.full_name,
         telegram_id=message.from_user.id,
@@ -54,11 +60,11 @@ async def buy_sub(callback: CallbackQuery, locale: Locale):
 async def choose_months(callback: CallbackQuery, locale: Locale):
     rate_id = int(callback.data.replace("select_rate_", ""))
     await callback.answer()
-    await callback.message.answer(locale.get("choose_months"), reply_markup=show_months(rate_id,locale))
+    await callback.message.answer(
+        locale.get("choose_months"), reply_markup=show_months(rate_id, locale)
+    )
 
 
-
-    
 @user_router.callback_query(F.data.startswith("select_months_"))
 async def confirm_purchase(callback: CallbackQuery, locale: Locale):
     await callback.answer()
@@ -67,18 +73,16 @@ async def confirm_purchase(callback: CallbackQuery, locale: Locale):
     confirm_purchase_locale = locale.get("confirm_purchase", callback.message)
     rate_data = config.get_rate_by_number(rate_number)
     if rate_data:
-        prices = escape_markdown_v2(
-            f"{locale.get('buy_rate')}{rate_data['name']}\n{locale.get('rate_value')}{int(rate_data['value'])*months}\n{locale.get('rate_description')}{rate_data['desc']}\n{locale.get('rate_period')}{months}"
-        )
+        prices =f"{locale.get('buy_rate')}{rate_data['name']}\n{locale.get('rate_value')}{int(rate_data['value'])*months}\n{locale.get('rate_description')}{rate_data['desc']}\n{locale.get('rate_period')}{months}"
     else:
         prices = "Rate not found"
     await callback.message.answer(
         f"{confirm_purchase_locale}\n\n{prices}",
-        reply_markup=payment_methods_kb(locale, rate_number,months)
+        reply_markup=payment_methods_kb(locale, rate_number, months),
     )
 
 
-@user_router.callback_query(F.data.startswith("pay_crypto"))
+""" @user_router.callback_query(F.data.startswith("pay_crypto"))
 async def generate_invoice(callback: CallbackQuery, locale: Locale):
     rates = RateConfig()
     
@@ -101,11 +105,7 @@ async def generate_invoice(callback: CallbackQuery, locale: Locale):
         )
         await callback.message.answer(
             text, reply_markup=crypto_button(locale, pay_link)
-        )
-
-
-
-
+        ) """
 
 
 @user_router.callback_query(F.data == "show_sub")
@@ -129,11 +129,124 @@ async def show_sub(callback: CallbackQuery, remnawave: RemnawaveSDK, locale: Loc
 
         answer += f"{locale.get('sub')} {i+1}\n{locale.get('expires')}\\: {expires}\n{locale.get('sub_url')}\\: {sub_url}\n{locale.get('traffic_used')}\\: {used_traffic}\n{locale.get('traffic_limit')}\\: {traffic_limit}\n{locale.get('status')}\\: {status}\n\n"
     try:
-        await callback.message.answer(escape_markdown_v2(answer))
+        await callback.message.answer(answer)
     except Exception as e:
         logger.error(f"err: {e}")
 
-@user_router.callback_query(F.data == "show_ballance")
+
+@user_router.callback_query(F.data == "show_balance")
 async def show_balance(callback: CallbackQuery, locale: Locale):
     await callback.answer()
-    ballance = 
+    user = UserRequests()
+    ans = await user.get_user_by_telegram_id(callback.from_user.id)
+    await callback.message.answer(
+        f'{locale.get("info_balance")}{ans.balance}', reply_markup=topup_balance(locale)
+    )
+
+@user_router.callback_query(F.data == "topup_balance")
+async def choose_pay_type(callback : CallbackQuery,locale: Locale):
+    await callback.answer()
+    await callback.message.answer(locale.get('choose_payment'),reply_markup=payment_methods_kb(locale))
+
+
+
+@user_router.callback_query(F.data == "pay_crypto")
+async def pay_crypto_start(callback: CallbackQuery, locale: Locale, state: FSMContext):
+    await callback.answer()
+    await state.set_state(PaymentStates.waiting_amount)
+    
+    await callback.message.answer(
+        locale.get("enter_amount")
+    )
+    logger.info(f"User {callback.from_user.id} started crypto payment process")
+
+@user_router.message(PaymentStates.waiting_amount)
+async def process_amount_and_create_invoice(message: Message, locale: Locale, state: FSMContext, **kwargs):
+    try:
+        amount = float(message.text.replace(',', '.'))
+        
+        if amount <= 0:
+            await message.answer(locale.get("invalid_amount"))
+            return
+            
+        if amount > 50000:
+            await message.answer(locale.get("amount_too_large"))
+            return
+            
+    except ValueError:
+        await message.answer(locale.get("invalid_amount_format"))
+        return
+    
+    await state.clear()
+    
+    try:
+        user = await UserRequests.get_user_by_telegram_id(message.from_user.id)
+        logger.info(f'user_id:{user.id}')
+        bot = kwargs.get('bot')
+        me = await bot.get_me()
+        bot_username = me.username
+        if not user:
+            await message.answer(locale.get("user_not_found"))
+            return
+        
+        client = CryptoBotWebhook()
+        invoice_data = await client.create_invoice(
+            amount=int(amount),
+            expires_in=3600,
+            user_id=user.id,
+            locale=locale,
+            btn_url=f"https://t.me/{bot_username}",
+        )
+        
+        if invoice_data and invoice_data.get("ok"):
+            pay_link = invoice_data["result"]["pay_url"]
+            
+            payment_info = (
+                f"{locale.get('payment_created')}\n\n"
+                f"{locale.get('amount')}: {amount} ₽\n"
+                f"{locale.get('expires_in')}\n\n"
+                f"{locale.get('pay_by_this_link')}"
+            )
+            
+            await message.answer(
+                payment_info,
+                reply_markup=crypto_button(locale, pay_link)
+            )
+            
+            logger.info(
+                f"Invoice successfully created for user {message.from_user.id}: "
+                f"amount={amount} RUB, invoice_id={invoice_data['result'].get('invoice_id', 'unknown')}"
+            )
+        else:
+            error_msg = invoice_data.get("error", {}).get("name", "Unknown error") if invoice_data else "No response"
+            await message.answer(locale.get("payment_creation_error"))
+            logger.error(f"Failed to create invoice for user {message.from_user.id}: {error_msg}")
+            
+    except Exception as e:
+        await message.answer(locale.get("payment_creation_error"))
+        logger.error(f"Exception in payment creation for user {message.from_user.id}: {e}")
+            
+    except Exception as e:
+        await message.answer(
+            locale.get("payment_creation_error")
+        )
+        logger.error(f"Exception in payment creation for user {message.from_user.id}: {e}")
+
+
+@event_bus.subscribe('payment_success')
+async def handle_payment_success(invoice_id: str, telegram_id: int, locale: Locale, **kwargs):
+    bot = kwargs.get('bot')
+    
+    if not bot:
+        logger.error("Bot instance not found")
+        return
+
+    try:
+        await bot.send_message(
+            chat_id=telegram_id,
+            text=locale.get("success"),
+            parse_mode="HTML"
+        )
+        logger.info(f"Payment success message sent to user {telegram_id}")
+    except Exception as e:
+        logger.error(f"Failed to send payment success message to {telegram_id}: {e}")

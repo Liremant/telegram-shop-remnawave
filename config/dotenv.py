@@ -53,6 +53,8 @@ class EnvConfig:
     def get_webhook_port(self) -> int:
         return int(os.getenv("WEBHOOK_PORT", "8080"))
 
+    def get_currency(self):
+        return os.getenv('RATE_CURRENCY')
 
 class GetDatabase:
     @staticmethod
@@ -123,6 +125,8 @@ class RateConfig:
                 }
 
         return rates
+
+
 
     def get_rate_by_number(self, rate_number: int) -> Optional[Dict[str, str]]:
         rates = self.get_rates()

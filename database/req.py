@@ -47,6 +47,7 @@ class UserRequests:
             await session.commit()
             return await UserRequests.get_user_by_id(user_id)
 
+
     @staticmethod
     async def delete_user(user_id: int) -> bool:
         async with get_session() as session:
@@ -54,7 +55,6 @@ class UserRequests:
             result = await session.execute(stmt)
             await session.commit()
             return result.rowcount > 0
-
 
 class SublinkRequests:
     @staticmethod
@@ -111,7 +111,9 @@ class InvoiceRequests:
         status: bool, user_id: int, platform: str, rate: int
     ) -> Invoice:
         async with get_session() as session:
-            invoice = Invoice(status=status, user_id=user_id, platform=platform, rate=rate)
+            invoice = Invoice(
+                status=status, user_id=user_id, platform=platform, rate=rate
+            )
             session.add(invoice)
             await session.commit()
             await session.refresh(invoice)

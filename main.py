@@ -16,6 +16,7 @@ from database.db import init_db
 from initialize_remnawave import create_remnawave_client
 
 from api.cryptobot import setup_crypto_webhook
+
 dp = Dispatcher()
 
 
@@ -29,7 +30,7 @@ def setup_logging():
     )
     for logger_name in [
         "sqlalchemy",
-        "sqlalchemy.engine", 
+        "sqlalchemy.engine",
         "sqlalchemy.pool",
         "httpx",
         "httpcore",
@@ -50,8 +51,11 @@ async def setup_bot():
     telegram_token = config.get_telegram_token()
     bot = Bot(
         token=telegram_token,
-        default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN_V2),
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
+        
+    dp.workflow_data["bot"] = bot
+    
     remnawave = create_remnawave_client()
     if asyncio.iscoroutine(remnawave):
         remnawave = await remnawave
@@ -93,49 +97,46 @@ async def run_polling(bot):
 
 async def run_webhook(bot, config):
     app = web.Application()
-    
+    app["bot"] = bot
     SimpleRequestHandler(
-        dispatcher=dp,
-        bot=bot,
-        secret_token=config.get_webhook_secret()
+        dispatcher=dp, bot=bot, secret_token=config.get_webhook_secret()
     ).register(app, path=config.get_webhook_path())
-    
+
     setup_application(app, dp, bot=bot)
-    
+
     setup_crypto_webhook(app)
 
     webhook_url = f"{config.get_webhook_url()}{config.get_webhook_path()}"
     await bot.set_webhook(
         url=webhook_url,
         allowed_updates=dp.resolve_used_update_types(),
-        drop_pending_updates=True,
+        drop_pending_updates=False,
         secret_token=config.get_webhook_secret(),
     )
     logger.info(f"webhook set: {webhook_url}")
-    
+
     runner = web.AppRunner(app)
     await runner.setup()
-    
-    site = web.TCPSite(
-        runner, 
-        config.get_webhook_host(), 
-        config.get_webhook_port()
+
+    site = web.TCPSite(runner, config.get_webhook_host(), config.get_webhook_port())
+
+    logger.info(
+        f"starting webhook server on {config.get_webhook_host()}:{config.get_webhook_port()}"
     )
-    
-    logger.info(f"starting webhook server on {config.get_webhook_host()}:{config.get_webhook_port()}")
     await site.start()
-    
+
     shutdown_event = asyncio.Event()
-    
+
     def signal_handler():
         shutdown_event.set()
-    
-    if hasattr(asyncio, 'get_running_loop'):
+
+    if hasattr(asyncio, "get_running_loop"):
         loop = asyncio.get_running_loop()
         import signal
+
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.add_signal_handler(sig, signal_handler)
-    
+
     try:
         await shutdown_event.wait()
     except asyncio.CancelledError:

@@ -1,13 +1,6 @@
-import re
-
-
-def escape_markdown_v2(text: str) -> str:
-    # Экранируем все специальные символы для MarkdownV2
-    return re.sub(r"([_*\[\]()~`>#+\-=|{}.!])", r"\\\1", text)
-
-
 class Locale:
-    def __init__(self):
+    def __init__(self, user_lang=None):
+        self.user_lang = user_lang  # добавляешь поддержку языка
         self.translations = {
             "en": {
                 "greeting": "Hello! Welcome to the vpn shop!",
@@ -40,6 +33,24 @@ class Locale:
                 "traffic_used": "Traffic used",
                 "traffic_limit": "Traffic limit",
                 "status": "Status",
+                "topup": "Top-up ballance",
+                "info_ballance": "Your ballance:",
+                "buy_rate": "Buy rate:",
+                "rate_value": "Price:",
+                "rate_description": "Description",
+                "rate_period": "Period:",
+                "payment_description": "VPN subscription payment",
+                "thanks_for_purchase": "Thanks for purchase!",
+                "enter_amount": "Enter amount to top up (in RUB):",
+                "invalid_amount": "Invalid amount",
+                "amount_too_large": "Amount is too large",
+                "invalid_amount_format": "Invalid amount format",
+                "payment_created": "Payment created",
+                "amount": "Amount",
+                "expires_in": "Expires in 1 hour",
+                "pay_by_this_link": "Pay by this link",
+                "payment_creation_error": "Payment creation error",
+                "user_not_found": "User not found"
             },
             "ru": {
                 "greeting": "Привет! Добро пожаловать в магазин vpn!",
@@ -69,16 +80,44 @@ class Locale:
                 "GB": "ГБ",
                 "sub": "Подписка",
                 "sub_url": "Ссылка на подписку",
-                "traffic_used": "Мспользовано",
+                "traffic_used": "Использовано",
                 "traffic_limit": "Лимит трафика",
-                "status": "Стаус",
+                "status": "Статус",
+                "topup": "Пополнить баланс",
+                "info_ballance": "Ваш баланс:",
+                "buy_rate": "Приобрести тариф:",
+                "rate_value": "Стоимость:",
+                "rate_description": "Описание:",
+                "rate_period": "Длительность:",
+                "payment_description": "Оплата VPN подписки",
+                "thanks_for_purchase": "Спасибо за покупку!",
+                "enter_amount": "Введите сумму для пополнения (в рублях):",
+                "invalid_amount": "Неверная сумма",
+                "amount_too_large": "Слишком большая сумма",
+                "invalid_amount_format": "Неверный формат суммы",
+                "payment_created": "Платеж создан",
+                "amount": "Сумма",
+                "expires_in": "Истекает через 1 час",
+                "pay_by_this_link": "Оплатить по этой ссылке",
+                "payment_creation_error": "Ошибка создания платежа",
+                "user_not_found": "Пользователь не найден"
             },
         }
+
+    def get_language(self):
+        """Возвращает установленный язык"""
+        return self.user_lang or "en"
+    
+    def set_language(self, lang):
+        """Устанавливает язык"""
+        self.user_lang = lang
 
     def get(self, key, message=None):
         user_lang = "en"
 
-        if message:
+        if self.user_lang:
+            user_lang = self.user_lang
+        elif message:
             if hasattr(message, "message") and hasattr(message.message, "from_user"):
                 user_lang = getattr(message.message.from_user, "language_code", "en")
             elif hasattr(message, "from_user") and hasattr(
@@ -87,8 +126,7 @@ class Locale:
                 user_lang = message.from_user.language_code
 
         translations = self.translations.get(user_lang, self.translations["en"])
-
-        return escape_markdown_v2(translations.get(key, key))
+        return translations.get(key, key)
 
     def add_translation(self, lang: str, key: str, value: str):
         if lang not in self.translations:
