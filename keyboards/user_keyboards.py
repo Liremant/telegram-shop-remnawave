@@ -4,15 +4,27 @@ from typing import Optional, Dict
 import logging
 
 
+def back_kb(locale):
+    buttons = []
+    back_button = InlineKeyboardButton(
+        text=(
+            locale.get("back")
+            if hasattr(locale, "get") and callable(locale.get)
+            else "⬅️ Назад"
+        ),
+        callback_data="back_to_main",
+    )
+    buttons.append([back_button])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
 def main_menu_kb(locale):
     buttons = [
         [
             InlineKeyboardButton(text=locale.get("buy_sub"), callback_data="buy_sub"),
             InlineKeyboardButton(text=locale.get("show_sub"), callback_data="show_sub"),
-            InlineKeyboardButton(
-                text=locale.get("show_balance"), callback_data="show_balance"
-            ),
-        ]
+        ],
+        [InlineKeyboardButton(text=locale.get("show_balance"), callback_data="show_balance")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 

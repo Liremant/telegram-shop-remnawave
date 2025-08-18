@@ -157,3 +157,5 @@ class RateConfig:
             return None
 
         return rate_value
+    def get_minimal_amount(self):
+        return os.getenv('MINIMAL_AMOUNT',default=100)

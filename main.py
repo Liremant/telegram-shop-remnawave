@@ -15,7 +15,7 @@ from handlers.user_handlers import user_router
 from database.db import init_db
 from initialize_remnawave import create_remnawave_client
 
-from api.cryptobot import setup_crypto_webhook
+from api.cryptobot import CryptoBotWebhook
 
 dp = Dispatcher()
 
@@ -63,6 +63,11 @@ async def setup_bot():
         dp.workflow_data["remnawave"] = remnawave
     except Exception:
         setattr(dp, "remnawave", remnawave)
+
+    token, currency = config.get_cryptobot_data()
+    cryptobot = CryptoBotWebhook(token, currency, bot)
+    dp.workflow_data["cryptobot"] = cryptobot
+
     locale = Locale()
     middleware = LocaleMiddleware(locale)
     dp.include_router(user_router)
@@ -97,14 +102,17 @@ async def run_polling(bot):
 
 async def run_webhook(bot, config):
     app = web.Application()
-    app["bot"] = bot
+
+
+    cryptobot = dp.workflow_data["cryptobot"]
+    app.add_subapp('/crypto-secret-path', cryptobot.app)
+
     SimpleRequestHandler(
         dispatcher=dp, bot=bot, secret_token=config.get_webhook_secret()
     ).register(app, path=config.get_webhook_path())
 
     setup_application(app, dp, bot=bot)
 
-    setup_crypto_webhook(app)
 
     webhook_url = f"{config.get_webhook_url()}{config.get_webhook_path()}"
     await bot.set_webhook(

@@ -1,12 +1,12 @@
 [project]
 name = "telegram-shop-remnawave"
 version = "0.1.0"
-description = "Add your description here"
+description = "Async shop with postresql database and remnawave panel integration,supports Cryptobot,Tribute"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "aiocryptopay>=0.4.8",
     "aiogram>=3.21.0",
+    "aiosend>=2.1.2",
     "asyncpg>=0.30.0",
     "python-dotenv>=1.1.1",
     "remnawave>=2.0.0",

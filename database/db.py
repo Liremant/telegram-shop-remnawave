@@ -52,7 +52,7 @@ class Invoice(Base, TimestampMixin):
     status: Mapped[str] = mapped_column(String(100))
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     platform: Mapped[str] = mapped_column(String(100))
-    rate: Mapped[int] = mapped_column(Integer)
+    amount: Mapped[float] = mapped_column()
 
 class ReferralLink(Base, TimestampMixin):
     __tablename__ = "referral_links" 

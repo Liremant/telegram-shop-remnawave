@@ -108,11 +108,11 @@ class SublinkRequests:
 class InvoiceRequests:
     @staticmethod
     async def create_invoice(
-        status: bool, user_id: int, platform: str, rate: int
+        status: str, user_id: int, platform: str, amount
     ) -> Invoice:
         async with get_session() as session:
             invoice = Invoice(
-                status=status, user_id=user_id, platform=platform, rate=rate
+                status=status, user_id=user_id, platform=platform, amount=amount
             )
             session.add(invoice)
             await session.commit()
