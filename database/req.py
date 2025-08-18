@@ -1,7 +1,7 @@
 from sqlalchemy import select, delete, update
 from datetime import datetime
 from typing import Optional, List
-from database.db import User, Sublink, Invoice, get_session
+from database.db import User, Sublink, Invoice, ReferralLink,get_session
 
 
 class UserRequests:
@@ -48,13 +48,6 @@ class UserRequests:
             return await UserRequests.get_user_by_id(user_id)
 
 
-    @staticmethod
-    async def delete_user(user_id: int) -> bool:
-        async with get_session() as session:
-            stmt = delete(User).where(User.id == user_id)
-            result = await session.execute(stmt)
-            await session.commit()
-            return result.rowcount > 0
 
 class SublinkRequests:
     @staticmethod
@@ -96,13 +89,7 @@ class SublinkRequests:
             await session.commit()
             return await SublinkRequests.get_sublink_by_id(sublink_id)
 
-    @staticmethod
-    async def delete_sublink(sublink_id: int) -> bool:
-        async with get_session() as session:
-            stmt = delete(Sublink).where(Sublink.id == sublink_id)
-            result = await session.execute(stmt)
-            await session.commit()
-            return result.rowcount > 0
+
 
 
 class InvoiceRequests:
@@ -141,10 +128,55 @@ class InvoiceRequests:
             await session.commit()
             return await InvoiceRequests.get_invoice_by_id(invoice_id)
 
+class ReferralLinkRequests:
     @staticmethod
-    async def delete_invoice(invoice_id: int) -> bool:
+    async def create_referral_link(
+        link: str, owner_id: int, user_id: int
+    ) -> ReferralLink:
         async with get_session() as session:
-            stmt = delete(Invoice).where(Invoice.id == invoice_id)
-            result = await session.execute(stmt)
+            referral_link = ReferralLink(
+                link=link,
+                owner_id=owner_id,
+                user_id=user_id,
+            )
+            session.add(referral_link)
             await session.commit()
-            return result.rowcount > 0
+            await session.refresh(referral_link)
+            return referral_link
+
+    @staticmethod
+    async def get_referral_link_by_id(referral_id: int) -> Optional[ReferralLink]:
+        async with get_session() as session:
+            stmt = select(ReferralLink).where(ReferralLink.id == referral_id)
+            result = await session.execute(stmt)
+            return result.scalars().first()
+
+    @staticmethod
+    async def get_referral_links_by_owner_id(owner_id: int) -> List[ReferralLink]:
+        async with get_session() as session:
+            stmt = select(ReferralLink).where(ReferralLink.owner_id == owner_id)
+            result = await session.execute(stmt)
+            return result.scalars().all()
+
+    @staticmethod
+    async def get_referral_link_by_user_id(user_id: int) -> Optional[ReferralLink]:
+        async with get_session() as session:
+            stmt = select(ReferralLink).where(ReferralLink.user_id == user_id)
+            result = await session.execute(stmt)
+            return result.scalars().first()
+
+    @staticmethod
+    async def get_all_referral_links() -> List[ReferralLink]:
+        async with get_session() as session:
+            stmt = select(ReferralLink)
+            result = await session.execute(stmt)
+            return result.scalars().all()
+
+    @staticmethod
+    async def update_referral_link(referral_id: int, **kwargs) -> Optional[ReferralLink]:
+        async with get_session() as session:
+            stmt = update(ReferralLink).where(ReferralLink.id == referral_id).values(**kwargs)
+            await session.execute(stmt)
+            await session.commit()
+            return await ReferralLinkRequests.get_referral_link_by_id(referral_id)
+

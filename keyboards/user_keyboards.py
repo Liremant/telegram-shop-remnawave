@@ -25,6 +25,7 @@ def main_menu_kb(locale):
             InlineKeyboardButton(text=locale.get("show_sub"), callback_data="show_sub"),
         ],
         [InlineKeyboardButton(text=locale.get("show_balance"), callback_data="show_balance")],
+        [InlineKeyboardButton(text=locale.get('refferal_button'), callback_data="show_refferals")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
