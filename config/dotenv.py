@@ -55,6 +55,10 @@ class EnvConfig:
 
     def get_currency(self):
         return os.getenv('RATE_CURRENCY')
+        
+    def get_ref_percent(self):
+        return int(os.getenv('REF_PERCENT'))
+    
 
 class GetDatabase:
     @staticmethod

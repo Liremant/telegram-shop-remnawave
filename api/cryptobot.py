@@ -4,8 +4,10 @@ from aiosend.types import Invoice
 from aiosend.webhook import AiohttpManager
 import logging
 from keyboards.user_keyboards import back_kb
-from database.req import InvoiceRequests, UserRequests
+from database.req import InvoiceRequests, UserRequests,  ReferralLinkRequests
 from config.locale import Locale
+from config.dotenv import EnvConfig
+from decimal import Decimal
 
 logger = logging.getLogger('__name__')
 class CryptoBotWebhook:
@@ -62,14 +64,38 @@ class CryptoBotWebhook:
         await run_app(self.app)
     
     async def _update_data(self,user_id,invoice,amount):
+        try:
+            invreq = InvoiceRequests()
+            usrreq = UserRequests()
+            refreq = ReferralLinkRequests()
+            env = EnvConfig()
+            
 
-        invreq = InvoiceRequests()
-        usrreq = UserRequests()
+            user = await usrreq.get_user_by_id(user_id=user_id)
+            balance = float(user.balance)
+            
+            referral = await refreq.get_referral_link_by_user_id(user.id)
+            if referral:
+                
+                ownref = await refreq.get_referral_link_by_user_id(user_id=user_id)
+                ownid = ownref.owner_id
+                percent = env.get_ref_percent()
+                
+                usid = await usrreq.get_user_by_id(ownid)
+                ownref_tgid = usid.telegram_id
+                user_lang = usid.locale
+                locale = Locale(user_lang)
 
-        user = await usrreq.get_user_by_id(user_id=user_id)
-        balance = float(user.balance)
-        
-        await invreq.update_invoice(invoice_id=invoice.invoice_id,status='payed')
-        await usrreq.update_user(user_id=user_id,balance=balance+amount)
+                referre_fee = usid.balance + Decimal(str(percent/100*amount))
+                logger.info(f'{percent},{percent/100},{percent/100*amount}')
 
+                await usrreq.update_user(user_id=ownid, balance=usid.balance + referre_fee)
+                await self.bot.send_message(chat_id=ownref_tgid,text=f'{locale.get("percent_by_referral")}{percent}{self.myfiat}')
+                logger.info(f'referral bonus payed from {user.id},@{user.username} in {percent/100 *amount} value')
+
+            await invreq.update_invoice(invoice_id=invoice.invoice_id,status='payed')
+            await usrreq.update_user(user_id=user_id,balance=balance+amount)
+        except Exception as e:
+            logger.error(e)
+            pass
         logger.info(f'user ballance sucessfuly updated:{balance+amount}')

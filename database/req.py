@@ -131,13 +131,14 @@ class InvoiceRequests:
 class ReferralLinkRequests:
     @staticmethod
     async def create_referral_link(
-        link: str, owner_id: int, user_id: int
+        owner_id: int, user_id: int, user_tgid,user_full_name,
     ) -> ReferralLink:
         async with get_session() as session:
             referral_link = ReferralLink(
-                link=link,
                 owner_id=owner_id,
                 user_id=user_id,
+                user_tgid=user_tgid,
+                user_full_name=user_full_name
             )
             session.add(referral_link)
             await session.commit()

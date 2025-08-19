@@ -1,6 +1,6 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, CommandObject
 from keyboards.user_keyboards import (
     main_menu_kb,
     rates_kb,
@@ -10,14 +10,15 @@ from keyboards.user_keyboards import (
     topup_balance
 )
 from config.locale import Locale
-from config.dotenv import RateConfig
+from config.dotenv import RateConfig, EnvConfig
 import logging
-from database.req import UserRequests, InvoiceRequests
+from database.req import UserRequests, InvoiceRequests, ReferralLinkRequests
 from api.user_manager import UserManager
 from api.cryptobot import CryptoBotWebhook
 from remnawave import RemnawaveSDK
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+import base58
 
 logger = logging.getLogger("__main__")
 user_router = Router()
@@ -27,7 +28,8 @@ class PaymentStates(StatesGroup):
     waiting_amount = State()
 
 @user_router.message(CommandStart())
-async def start(message: Message, locale: Locale):
+async def start(message: Message, locale: Locale,command: CommandObject,**kwargs    ):
+
 
 
     greeting = locale.get("greeting")
@@ -35,31 +37,69 @@ async def start(message: Message, locale: Locale):
         f"user {message.from_user.username} started bot. id={message.from_user.id}"
     )
     client = UserRequests
-    user = await client.create_user(
-        username=message.from_user.username,
+    tgid = message.from_user.id
+    name = message.from_user.full_name
+    if message.from_user.username:
+        username = message.from_user.username
+        user = await client.create_user(
+        username=username,
+        name=name,
+        telegram_id=tgid,
+        locale=message.from_user.language_code
+    )
+    else:
+        user = await client.create_user(
         name=message.from_user.full_name,
         telegram_id=message.from_user.id,
         locale=message.from_user.language_code
     )
     if user:
         logger.info("user added into db")
+        if command.args:
+            
+            crypted_id = command.args  
+            ownref_tgid = base58.b58decode_int(crypted_id)
+            ownref = await client.get_user_by_telegram_id(ownref_tgid)
+            bot = kwargs.get('bot')
+            ref = ReferralLinkRequests
+            usr = await client.get_user_by_telegram_id(message.from_user.id)
+            user_id = usr.id
+            ownref_user_id = ownref.id
+            refferal = await ref.create_referral_link(
+                owner_id=ownref_user_id,
+                user_id=user_id,
+                user_tgid=tgid,
+                user_full_name=name
+            )
+            if refferal:
+                if username:
+                    await bot.send_message(
+                        chat_id=ownref_tgid,
+                        text=f'{locale.get("referral_connected")}\n{name} ',
+                    )
+                else:
+                    await bot.send_message(
+                        chat_id=ownref_tgid,
+                        text=f'{locale.get("referral_connected")}\n• {name}• {username} ',
+                    )
+
     else:
         logger.info("user already in db")
+
     await message.answer(greeting, reply_markup=main_menu_kb(locale))
 
 
 @user_router.callback_query(F.data == "back_to_main")
 async def restart(callback: CallbackQuery, locale: Locale):
     callback.answer()
-    greeting = locale.get("greeting", callback.message)
-    logger.info(
-        f"user {callback.message.from_user.username} started bot. id={callback.essage.from_user.id}"
-    )
+    greeting = locale.get("greeting")
+    logger.info(f"user {callback.message.from_user.username} started bot. id={callback.message.from_user.id}")
     client = UserRequests
     user = await client.create_user(
         username=callback.message.from_user.username,
         name=callback.message.from_user.full_name,
         telegram_id=callback.message.from_user.id,
+        locale=callback.message.from_user.language_code
     )
     if user:
         logger.info("user added into db")
@@ -205,3 +245,30 @@ async def process_amount_and_create_invoice(message: Message, locale: Locale, st
         logger.exception(f'error:{e}')
 
 
+@user_router.callback_query(F.data == 'show_refferals')
+async def show_refs(callback: CallbackQuery,locale: Locale,**kwargs):
+    env = EnvConfig()
+    percent = env.get_ref_percent()
+    await callback.answer()
+    bot = kwargs.get('bot')
+    me = await bot.get_me()
+    tg_id = callback.from_user.id
+    cryptedid = base58.b58encode_int(tg_id).decode()
+    reflink = f'https://t.me/{me.username}?start={cryptedid}'
+    ans=f'''{locale.get('refheader')}
+
+{locale.get('your_reflink')} {reflink}
+{locale.get('ref_percent')} {percent}%
+    '''
+    user = UserRequests()
+    owner_id = await user.get_user_by_telegram_id(tg_id)
+    try:
+        refs = ReferralLinkRequests()
+        referrals = await refs.get_referral_links_by_owner_id(owner_id=owner_id)
+        
+        for ref in referrals:
+            ans+=f'''• {ref.full_name}
+            '''
+    except Exception as e:
+        logger.debug(e)
+    await callback.message.answer(ans)
