@@ -1,4 +1,4 @@
-from sqlalchemy import select, delete, update
+from sqlalchemy import select, update
 from datetime import datetime
 from typing import Optional, List
 from database.db import User, Sublink, Invoice, ReferralLink,get_session
@@ -6,13 +6,13 @@ from database.db import User, Sublink, Invoice, ReferralLink,get_session
 
 class UserRequests:
     @staticmethod
-    async def create_user(username: str, telegram_id: int, name: str) -> bool:
+    async def create_user(username: str, telegram_id: int, name: str,locale:str) -> bool:
         async with get_session() as session:
             existing = await UserRequests.get_user_by_telegram_id(telegram_id)
             if existing:
                 return False
 
-            user = User(username=username, telegram_id=telegram_id, name=name)
+            user = User(username=username, telegram_id=telegram_id, name=name,locale=locale)
             session.add(user)
             await session.commit()
             await session.refresh(user)

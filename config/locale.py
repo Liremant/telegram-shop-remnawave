@@ -1,6 +1,6 @@
 class Locale:
-    def __init__(self, user_lang=None):
-        self.user_lang = user_lang  # добавляешь поддержку языка
+    def __init__(self,lang):
+        self.lang = lang
         self.translations = {
             "en": {
                 "greeting": "Hello! Welcome to the vpn shop!",
@@ -103,38 +103,9 @@ class Locale:
                 "user_not_found": "Пользователь не найден"
             },
         }
-
-    def get_language(self):
-        """Возвращает установленный язык"""
-        return self.user_lang or "en"
-    
-    def set_language(self, lang):
-        """Устанавливает язык"""
-        self.user_lang = lang
-
-    def get(self, key, message=None):
-        user_lang = "en"
-
-        if self.user_lang:
-            user_lang = self.user_lang
-        elif message:
-            if hasattr(message, "message") and hasattr(message.message, "from_user"):
-                user_lang = getattr(message.message.from_user, "language_code", "en")
-            elif hasattr(message, "from_user") and hasattr(
-                message.from_user, "language_code"
-            ):
-                user_lang = message.from_user.language_code
-
-        translations = self.translations.get(user_lang, self.translations["en"])
+    def get(self, key: str) -> str:
+        translations = self.translations.get(self.lang, self.translations["en"])
         return translations.get(key, key)
-
-    def add_translation(self, lang: str, key: str, value: str):
-        if lang not in self.translations:
-            self.translations[lang] = {}
-        self.translations[lang][key] = value
-
-    def get_supported_languages(self):
-        return list(self.translations.keys())
 
     def get_all_keys(self):
         all_keys = set()

@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import String, DateTime, func, ForeignKey, Integer, DECIMAL
+from sqlalchemy import String, DateTime, func, ForeignKey, Integer, DECIMAL, BigInteger
 from datetime import datetime
 from dotenv import load_dotenv
 import os
@@ -29,10 +29,10 @@ class User(Base, TimestampMixin):
     
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(30))
-    telegram_id: Mapped[int] = mapped_column(unique=True)
+    telegram_id: Mapped[BigInteger] = mapped_column(unique=True)
     name: Mapped[str] = mapped_column(String(100))
     balance: Mapped[Decimal] = mapped_column(DECIMAL(precision=10, scale=2), default=Decimal('0.00'))
-    locale: Mapped[str] = mapped_column(String(10),default='ru')
+    locale: Mapped[str] = mapped_column(String(10),default='ru',nullable=False)
     referral_link: Mapped[str] = mapped_column(String(100),nullable=True)
 
 class Sublink(Base, TimestampMixin):
@@ -58,9 +58,10 @@ class ReferralLink(Base, TimestampMixin):
     __tablename__ = "referral_links" 
     
     id: Mapped[int] = mapped_column(primary_key=True)
-    link: Mapped[str] = mapped_column(String(100))
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    owner_tgid: Mapped[BigInteger] = mapped_column(ForeignKey("users.telegram_id"))
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True)
+    user_tgid: Mapped[BigInteger] = mapped_column(ForeignKey("users.telegram_id"))
 
 async def init_db():
     async with engine.begin() as conn:

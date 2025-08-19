@@ -5,17 +5,17 @@ import logging
 
 
 def back_kb(locale):
-    buttons = []
-    back_button = InlineKeyboardButton(
-        text=(
-            locale.get("back")
-            if hasattr(locale, "get") and callable(locale.get)
-            else "⬅️ Назад"
-        ),
-        callback_data="back_to_main",
-    )
-    buttons.append([back_button])
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+    buttons = [
+        InlineKeyboardButton(
+            text=(
+                locale.get("back")
+                if hasattr(locale, "get") and callable(locale.get)
+                else "⬅️ Назад"
+            ),
+            callback_data="back_to_main",
+        )
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=[buttons])
 
 
 def main_menu_kb(locale):

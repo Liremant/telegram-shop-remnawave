@@ -1,6 +1,6 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
-from aiogram.filters import CommandStart, Command
+from aiogram.filters import CommandStart
 from keyboards.user_keyboards import (
     main_menu_kb,
     rates_kb,
@@ -12,7 +12,6 @@ from keyboards.user_keyboards import (
 from config.locale import Locale
 from config.dotenv import RateConfig
 import logging
-from events import event_bus
 from database.req import UserRequests, InvoiceRequests
 from api.user_manager import UserManager
 from api.cryptobot import CryptoBotWebhook
@@ -29,7 +28,9 @@ class PaymentStates(StatesGroup):
 
 @user_router.message(CommandStart())
 async def start(message: Message, locale: Locale):
-    greeting = locale.get("greeting", message)
+
+
+    greeting = locale.get("greeting")
     logger.info(
         f"user {message.from_user.username} started bot. id={message.from_user.id}"
     )
@@ -38,6 +39,7 @@ async def start(message: Message, locale: Locale):
         username=message.from_user.username,
         name=message.from_user.full_name,
         telegram_id=message.from_user.id,
+        locale=message.from_user.language_code
     )
     if user:
         logger.info("user added into db")
@@ -68,7 +70,7 @@ async def restart(callback: CallbackQuery, locale: Locale):
 
 @user_router.callback_query(F.data == "buy_sub")
 async def buy_sub(callback: CallbackQuery, locale: Locale):
-    choose_rate = locale.get("choose_rate", callback.message)
+    choose_rate = locale.get("choose_rate")
     await callback.answer()
     await callback.message.edit_text(choose_rate, reply_markup=rates_kb(locale))
     logger.info(
@@ -90,7 +92,7 @@ async def confirm_purchase(callback: CallbackQuery, locale: Locale):
     await callback.answer()
     config = RateConfig()
     _, _, rate_number, months = callback.data.split("_")
-    confirm_purchase_locale = locale.get("confirm_purchase", callback.message)
+    confirm_purchase_locale = locale.get("confirm_purchase")
     rate_data = config.get_rate_by_number(rate_number)
     if rate_data:
         prices =f"{locale.get('buy_rate')}{rate_data['name']}\n{locale.get('rate_value')}{int(rate_data['value'])*months}\n{locale.get('rate_description')}{rate_data['desc']}\n{locale.get('rate_period')}{months}"
@@ -201,3 +203,5 @@ async def process_amount_and_create_invoice(message: Message, locale: Locale, st
         await message.answer(locale.get('pay_crypto'),reply_markup=crypto_button(locale,invoice.bot_invoice_url))
     except Exception as e:
         logger.exception(f'error:{e}')
+
+

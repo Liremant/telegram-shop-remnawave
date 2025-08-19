@@ -5,6 +5,7 @@ from aiosend.webhook import AiohttpManager
 import logging
 from keyboards.user_keyboards import back_kb
 from database.req import InvoiceRequests, UserRequests
+from config.locale import Locale
 
 logger = logging.getLogger('__name__')
 class CryptoBotWebhook:
@@ -28,17 +29,18 @@ class CryptoBotWebhook:
             await self.handle_payment(invoice)
 
     async def handle_payment(self, invoice: Invoice):
-        user_id,tg_id,success_message,backb = invoice.payload.split('_', 3)
+        user_id,tg_id = invoice.payload.split('_', 1)
         user_id = int(user_id)
         tg_id = int(tg_id)
         logger.info(f"Received {invoice.amount} {invoice.fiat} by user:{user_id},tgid={tg_id}")
         amount = invoice.amount
-
-        
+        user = await UserRequests().get_user_by_id(user_id)
+        lang = user.locale
+        locale = Locale(lang)
         await self.bot.send_message(
             chat_id=tg_id,
-            text=f'{success_message}\n+{amount}{self.myfiat}',
-            reply_markup=back_kb(backb)
+            text=f'{locale.get("success_message")}\n+{amount}{self.myfiat}',
+            reply_markup=back_kb(locale)
             )    
         await self._update_data(user_id,invoice,amount)
 
@@ -51,7 +53,7 @@ class CryptoBotWebhook:
             paid_btn_url=bot_username,
             accepted_assets=['USDT','TON'],
             expires_in=3600,
-            payload=f"{user_id}_{tg_id}_{locale.get('payment_success')}_{locale.get('back')}"
+            payload=f"{user_id}_{tg_id}"
         )
         logger.info(f"invoice link: {invoice.bot_invoice_url}")
         return invoice

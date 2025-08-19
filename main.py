@@ -9,7 +9,6 @@ from aiohttp import web
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
 from config.dotenv import EnvConfig
-from config.locale import Locale
 from middleware import LocaleMiddleware
 from handlers.user_handlers import user_router
 from database.db import init_db
@@ -68,8 +67,7 @@ async def setup_bot():
     cryptobot = CryptoBotWebhook(token, currency, bot)
     dp.workflow_data["cryptobot"] = cryptobot
 
-    locale = Locale()
-    middleware = LocaleMiddleware(locale)
+    middleware = LocaleMiddleware()
     dp.include_router(user_router)
     dp.update.outer_middleware(middleware)
     await init_db()
