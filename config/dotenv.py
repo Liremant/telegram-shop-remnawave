@@ -1,11 +1,12 @@
 import os
 from dotenv import load_dotenv, find_dotenv, set_key
-from typing import Dict, Union, Optional
+from typing import Dict, Optional
 import secrets
 import string
 import logging
 
 logger = logging.getLogger(__name__)
+
 
 class EnvConfig:
     def __init__(self, env_file=".env"):
@@ -24,14 +25,13 @@ class EnvConfig:
         panel_url = os.getenv("PANEL_URL")
 
         return token, panel_url
-    
+
     def get_cryptobot_data(self):
-        token = os.getenv('CRYPTOBOT_TOKEN')
+        token = os.getenv("CRYPTOBOT_TOKEN")
         currency = os.getenv("RATE_CURRENCY", "RUB")
 
         return token, currency
 
-    
     def get_use_webhook(self) -> bool:
         return os.getenv("USE_WEBHOOK", "false").lower() == "true"
 
@@ -54,11 +54,11 @@ class EnvConfig:
         return int(os.getenv("WEBHOOK_PORT", "8080"))
 
     def get_currency(self):
-        return os.getenv('RATE_CURRENCY')
-        
+        return os.getenv("RATE_CURRENCY")
+
     def get_ref_percent(self):
-        return int(os.getenv('REF_PERCENT'))
-    
+        return int(os.getenv("REF_PERCENT"))
+
 
 class GetDatabase:
     @staticmethod
@@ -84,9 +84,6 @@ class GetDatabase:
 
 
 class RateConfig:
-    def __init__(self, env_config: Optional[EnvConfig] = None):
-        self.env_config = EnvConfig()
-
     def _format_rate(self) -> str:
         currency = os.getenv("RATE_CURRENCY", "RUB")
         if currency == "RUB":
@@ -94,43 +91,41 @@ class RateConfig:
         elif currency:
             return currency
 
-
     def get_rates(self) -> Dict[str, Dict[str, str]]:
         rates = {}
-        rate_1_value = os.getenv("RATE")
-        rate_1_name = os.getenv("RATE_NAME", "Тариф 1")
-        rate_1_desc = os.getenv("RATE_DESC", "")
+        rate_1_value = int(os.getenv("RATE"))
+        rate_1_limit = os.getenv("RATE_LIMIT")
+        rate_1_desc = os.getenv("RATE_DESC")
+
+        logger.info(type(rate_1_value))
 
         if rate_1_value is None:
             raise ValueError("RATE is not set in environment")
 
         rates["rate_1"] = {
             "value": rate_1_value,
-            "currency":self._format_rate(),
-            "name": rate_1_name,
-            "desc": rate_1_desc,
+            "currency": self._format_rate(),
+            "limit": rate_1_limit,
+            "desc": rate_1_desc
         }
 
         for i in range(2, 10):
             rate_key = f"RATE_{i}"
-            rate_name_key = f"RATE{i}_NAME"
-            rate_desc_key = f"RATE{i}_DESC"
-
+            rate_limit = f'RATE{i}_LIMIT'
+            rate_dsc = f'RATE{i}_DESC'
+            
             rate_value = os.getenv(rate_key)
-            rate_name = os.getenv(rate_name_key, f"Тариф {i}")
-            rate_desc = os.getenv(rate_desc_key, "")
-
+            rate_lmt = os.getenv(rate_limit)
+            rate_desc = os.getenv(rate_dsc)
             if rate_value is not None:
                 rates[f"rate_{i}"] = {
                     "value": rate_value,
                     "currency": self._format_rate(),
-                    "name": rate_name,
-                    "desc": rate_desc,
+                    "limit": rate_lmt,
+                    "desc": rate_desc
                 }
 
         return rates
-
-
 
     def get_rate_by_number(self, rate_number: int) -> Optional[Dict[str, str]]:
         rates = self.get_rates()
@@ -140,15 +135,16 @@ class RateConfig:
         rates = self.get_rates()
         return {key: data["value"] for key, data in rates.items()}
 
-    def get_all_rate_names(self) -> Dict[str, str]:
+    def get_all_rate_limits(self) -> Dict[str, str]:
         rates = self.get_rates()
-        return {key: data["name"] for key, data in rates.items()}
+        return {key: data["limit"] for key, data in rates.items()}
 
     def get_all_rate_descs(self) -> Dict[str, str]:
         rates = self.get_rates()
         return {key: data["desc"] for key, data in rates.items()}
+
     def get_value_by_number(self, rate_number: int) -> Optional[str]:
-        load_dotenv()  
+        load_dotenv()
         key = "RATE" if int(rate_number) == 1 else f"RATE_{rate_number}"
         rate_value = os.getenv(key)
 
@@ -161,5 +157,6 @@ class RateConfig:
             return None
 
         return rate_value
+
     def get_minimal_amount(self):
-        return os.getenv('MINIMAL_AMOUNT',default=100)
+        return os.getenv("MINIMAL_AMOUNT", default=100)

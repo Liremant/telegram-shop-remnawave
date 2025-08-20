@@ -18,25 +18,28 @@ class UserManager:
     def __init__(self, remnawave_client):
         self.client = remnawave_client
 
-    def generate_username(self, prefix="user"):
+    def generate_username(self):
         u = uuid.uuid4()
         b64 = base64.urlsafe_b64encode(u.bytes).rstrip(b"=").decode("ascii")
         return b64
 
-    async def create_or_get_user(self, telegram_id: int, tg_username: str = None):
-        username = self.generate_username(prefix=telegram_id)
+    async def create_user(self, telegram_id,months,limit_bytes):
+        username = self.generate_username()
 
         user_data = CreateUserRequestDto(
             username=username,
-            expire_at=datetime.utcnow() + timedelta(days=30),
+            expire_at=datetime.utcnow() + timedelta(days=int(months)*30),
             telegram_id=telegram_id,
+            activate_all_inbounds=True,
+            traffic_limit_bytes=limit_bytes,
+            traffic_limit_strategy="MONTH"
         )
 
         created_user: UserResponseDto = await self.client.users.create_user(
             body=user_data
         )
         logger.info(f"user created:{created_user}")
-        return f"user created!username={username},expires={datetime.utcnow() + timedelta(days=30)},id={telegram_id}"
+        return created_user
 
     async def renew_subscription(self, tg_id: int, days: int):
         user = await self.create_or_get_user(tg_id)

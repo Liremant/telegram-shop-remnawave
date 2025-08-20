@@ -1,5 +1,5 @@
 class Locale:
-    def __init__(self,lang):
+    def __init__(self, lang):
         self.lang = lang
         self.translations = {
             "en": {
@@ -50,7 +50,7 @@ class Locale:
                 "expires_in": "Expires in 1 hour",
                 "pay_by_this_link": "Pay by this link",
                 "payment_creation_error": "Payment creation error",
-                "user_not_found": "User not found"
+                "user_not_found": "User not found",
             },
             "ru": {
                 "greeting": "Привет! Добро пожаловать в магазин vpn!",
@@ -100,9 +100,10 @@ class Locale:
                 "expires_in": "Истекает через 1 час",
                 "pay_by_this_link": "Оплатить по этой ссылке",
                 "payment_creation_error": "Ошибка создания платежа",
-                "user_not_found": "Пользователь не найден"
+                "user_not_found": "Пользователь не найден",
             },
         }
+
     def get(self, key: str) -> str:
         translations = self.translations.get(self.lang, self.translations["en"])
         return translations.get(key, key)

@@ -12,7 +12,7 @@ from config.dotenv import EnvConfig
 from middleware import LocaleMiddleware
 from handlers.user_handlers import user_router
 from database.db import init_db
-from initialize_remnawave import create_remnawave_client
+from remnawave import RemnawaveSDK
 
 from api.cryptobot import CryptoBotWebhook
 
@@ -52,10 +52,10 @@ async def setup_bot():
         token=telegram_token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
-        
+
     dp.workflow_data["bot"] = bot
-    
-    remnawave = create_remnawave_client()
+    remnawave_token, panel_url = config.get_remnawave_data()
+    remnawave = RemnawaveSDK(base_url=panel_url, token=remnawave_token)
     if asyncio.iscoroutine(remnawave):
         remnawave = await remnawave
     try:
@@ -88,29 +88,17 @@ async def cleanup_bot(bot):
             pass
 
 
-async def run_polling(bot):
-    logger.info("starting polling...")
-    try:
-        await dp.start_polling(bot)
-    except asyncio.CancelledError:
-        pass
-    finally:
-        await cleanup_bot(bot)
-
-
 async def run_webhook(bot, config):
     app = web.Application()
 
-
     cryptobot = dp.workflow_data["cryptobot"]
-    app.add_subapp('/crypto-secret-path', cryptobot.app)
+    app.add_subapp("/crypto-secret-path", cryptobot.app)
 
     SimpleRequestHandler(
         dispatcher=dp, bot=bot, secret_token=config.get_webhook_secret()
     ).register(app, path=config.get_webhook_path())
 
     setup_application(app, dp, bot=bot)
-
 
     webhook_url = f"{config.get_webhook_url()}{config.get_webhook_path()}"
     await bot.set_webhook(
@@ -156,10 +144,7 @@ async def run_webhook(bot, config):
 async def main():
     bot, config = await setup_bot()
     try:
-        if config.get_use_webhook():
-            await run_webhook(bot, config)
-        else:
-            await run_polling(bot)
+        await run_webhook(bot, config)
     except KeyboardInterrupt:
         logger.info("received keyboard interrupt")
     except Exception as e:

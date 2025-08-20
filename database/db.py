@@ -1,6 +1,11 @@
 from contextlib import asynccontextmanager
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker, DeclarativeBase, Mapped, mapped_column,relationship
+from sqlalchemy.orm import (
+    sessionmaker,
+    DeclarativeBase,
+    Mapped,
+    mapped_column,
+)
 from sqlalchemy import String, DateTime, func, ForeignKey, Integer, DECIMAL, BigInteger
 from datetime import datetime
 from dotenv import load_dotenv
@@ -13,8 +18,10 @@ DATABASE_URL = f"postgresql+asyncpg://{os.getenv('PSQL_USER')}:{os.getenv('PSQL_
 engine = create_async_engine(DATABASE_URL, echo=False)
 async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
+
 class Base(DeclarativeBase):
     pass
+
 
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(
@@ -24,43 +31,50 @@ class TimestampMixin:
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
+
 class User(Base, TimestampMixin):
     __tablename__ = "users"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True)
-    username: Mapped[str] = mapped_column(String(30),nullable=True)
-    telegram_id: Mapped[int] = mapped_column(BigInteger,unique=True)
+    username: Mapped[str] = mapped_column(String(30), nullable=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True)
     name: Mapped[str] = mapped_column(String(100))
-    balance: Mapped[Decimal] = mapped_column(DECIMAL(precision=10, scale=2), default=Decimal('0.00'))
-    locale: Mapped[str] = mapped_column(String(10),default='ru',nullable=False)
+    balance: Mapped[Decimal] = mapped_column(
+        DECIMAL(precision=10, scale=2), default=Decimal("0.00")
+    )
+    locale: Mapped[str] = mapped_column(String(10), default="ru", nullable=False)
+
 
 class Sublink(Base, TimestampMixin):
     __tablename__ = "sublinks"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True)
     link: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     username: Mapped[str] = mapped_column(String(500))
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True)
-    rate: Mapped[int] = mapped_column(Integer)
-
+    limit_gb: Mapped[Decimal] = mapped_column(DECIMAL(precision=10,scale=2))
+    used_gb: Mapped[Decimal] = mapped_column(DECIMAL(precision=10,scale=2),default=Decimal("0.00"))
+    status: Mapped[str] = mapped_column(String(50))
 class Invoice(Base, TimestampMixin):
     __tablename__ = "invoices"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True)
     status: Mapped[str] = mapped_column(String(100))
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     platform: Mapped[str] = mapped_column(String(100))
     amount: Mapped[float] = mapped_column()
 
+
 class ReferralLink(Base, TimestampMixin):
-    __tablename__ = "referral_links" 
-    
+    __tablename__ = "referral_links"
+
     id: Mapped[int] = mapped_column(primary_key=True)
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True)
-    user_tgid: Mapped[int] = mapped_column(BigInteger,ForeignKey("users.telegram_id"))
+    user_tgid: Mapped[int] = mapped_column(BigInteger, ForeignKey("users.telegram_id"))
     user_full_name: Mapped[str] = mapped_column(String(200))
+
 
 
 async def init_db():

@@ -3,6 +3,7 @@ from aiogram.types import TelegramObject, Message, CallbackQuery, Update
 from database.req import UserRequests
 from config.locale import Locale
 
+
 class LocaleMiddleware(BaseMiddleware):
     def __init__(self, default_lang: str = "en"):
         super().__init__()

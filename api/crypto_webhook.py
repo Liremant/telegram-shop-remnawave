@@ -20,9 +20,7 @@ class CryptoBotWebhook:
         async def invoice_paid(update: Update, app) -> None:
             logger.info(update)
 
-    async def cr_invoice(
-        self, amount: float, locale, expires_in: int, user_id
-    ) -> str:
+    async def cr_invoice(self, amount: float, locale, expires_in: int, user_id) -> str:
         invoice = await self.crypto.create_invoice(
             amount=amount,
             description=f"{locale.get('payment_description')}:",

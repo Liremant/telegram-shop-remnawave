@@ -1,18 +1,22 @@
 from sqlalchemy import select, update
 from datetime import datetime
 from typing import Optional, List
-from database.db import User, Sublink, Invoice, ReferralLink,get_session
+from database.db import User, Sublink, Invoice, ReferralLink, get_session
 
 
 class UserRequests:
     @staticmethod
-    async def create_user(username: str, telegram_id: int, name: str,locale:str) -> bool:
+    async def create_user(
+        username: str, telegram_id: int, name: str, locale: str
+    ) -> bool:
         async with get_session() as session:
             existing = await UserRequests.get_user_by_telegram_id(telegram_id)
             if existing:
                 return False
 
-            user = User(username=username, telegram_id=telegram_id, name=name,locale=locale)
+            user = User(
+                username=username, telegram_id=telegram_id, name=name, locale=locale
+            )
             session.add(user)
             await session.commit()
             await session.refresh(user)
@@ -48,11 +52,10 @@ class UserRequests:
             return await UserRequests.get_user_by_id(user_id)
 
 
-
 class SublinkRequests:
     @staticmethod
     async def create_sublink(
-        link: str, expires_at: datetime, username: str, user_id: int, rate: int
+        link: str, expires_at: datetime, username: str, user_id: int,limit_gb,status
     ) -> Sublink:
         async with get_session() as session:
             sublink = Sublink(
@@ -60,7 +63,9 @@ class SublinkRequests:
                 expires_at=expires_at,
                 username=username,
                 user_id=user_id,
-                rate=rate,
+                limit_gb=limit_gb,
+                status=status
+
             )
             session.add(sublink)
             await session.commit()
@@ -88,9 +93,12 @@ class SublinkRequests:
             await session.execute(stmt)
             await session.commit()
             return await SublinkRequests.get_sublink_by_id(sublink_id)
-
-
-
+    @staticmethod
+    async def get_sublink_by_link(link: int) -> Optional[Sublink]:
+        async with get_session() as session:
+            stmt = select(Sublink).where(Sublink.link == link)
+            result = await session.execute(stmt)
+            return result.scalars().first()
 
 class InvoiceRequests:
     @staticmethod
@@ -128,17 +136,21 @@ class InvoiceRequests:
             await session.commit()
             return await InvoiceRequests.get_invoice_by_id(invoice_id)
 
+
 class ReferralLinkRequests:
     @staticmethod
     async def create_referral_link(
-        owner_id: int, user_id: int, user_tgid,user_full_name,
+        owner_id: int,
+        user_id: int,
+        user_tgid,
+        user_full_name,
     ) -> ReferralLink:
         async with get_session() as session:
             referral_link = ReferralLink(
                 owner_id=owner_id,
                 user_id=user_id,
                 user_tgid=user_tgid,
-                user_full_name=user_full_name
+                user_full_name=user_full_name,
             )
             session.add(referral_link)
             await session.commit()
@@ -174,10 +186,15 @@ class ReferralLinkRequests:
             return result.scalars().all()
 
     @staticmethod
-    async def update_referral_link(referral_id: int, **kwargs) -> Optional[ReferralLink]:
+    async def update_referral_link(
+        referral_id: int, **kwargs
+    ) -> Optional[ReferralLink]:
         async with get_session() as session:
-            stmt = update(ReferralLink).where(ReferralLink.id == referral_id).values(**kwargs)
+            stmt = (
+                update(ReferralLink)
+                .where(ReferralLink.id == referral_id)
+                .values(**kwargs)
+            )
             await session.execute(stmt)
             await session.commit()
             return await ReferralLinkRequests.get_referral_link_by_id(referral_id)
-
