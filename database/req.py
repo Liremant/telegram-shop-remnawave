@@ -55,7 +55,7 @@ class UserRequests:
 class SublinkRequests:
     @staticmethod
     async def create_sublink(
-        link: str, expires_at: datetime, username: str, user_id: int,limit_gb,status
+        link: str, expires_at: datetime, username: str, user_id: int, limit_gb, status
     ) -> Sublink:
         async with get_session() as session:
             sublink = Sublink(
@@ -64,8 +64,7 @@ class SublinkRequests:
                 username=username,
                 user_id=user_id,
                 limit_gb=limit_gb,
-                status=status
-
+                status=status,
             )
             session.add(sublink)
             await session.commit()
@@ -93,12 +92,14 @@ class SublinkRequests:
             await session.execute(stmt)
             await session.commit()
             return await SublinkRequests.get_sublink_by_id(sublink_id)
+
     @staticmethod
     async def get_sublink_by_link(link: int) -> Optional[Sublink]:
         async with get_session() as session:
             stmt = select(Sublink).where(Sublink.link == link)
             result = await session.execute(stmt)
             return result.scalars().first()
+
 
 class InvoiceRequests:
     @staticmethod

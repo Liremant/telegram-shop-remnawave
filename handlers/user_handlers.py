@@ -11,12 +11,17 @@ from keyboards.user_keyboards import (
     build_subscription_detail_keyboard,
     build_subscriptions_keyboard,
     confirm_pay,
-    sub_kb
+    sub_kb,
 )
 from config.locale import Locale
 from config.dotenv import RateConfig, EnvConfig
 import logging
-from database.req import UserRequests, InvoiceRequests, ReferralLinkRequests,SublinkRequests
+from database.req import (
+    UserRequests,
+    InvoiceRequests,
+    ReferralLinkRequests,
+    SublinkRequests,
+)
 from api.user_manager import UserManager
 from api.cryptobot import CryptoBotWebhook
 from remnawave import RemnawaveSDK
@@ -24,6 +29,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 import base58
 from decimal import Decimal
+
 logger = logging.getLogger("__main__")
 user_router = Router()
 
@@ -135,8 +141,8 @@ async def confirm_purchase(callback: CallbackQuery, locale: Locale):
     await callback.answer()
     config = RateConfig()
     _, _, rate_number, months = callback.data.split("_")
-    months=int(months)
-    logger.info(f'rate_numer:{rate_number},months:{months}')
+    months = int(months)
+    logger.info(f"rate_numer:{rate_number},months:{months}")
     confirm_purchase_locale = locale.get("confirm_purchase")
     rate_data = config.get_rate_by_number(rate_number)
     if rate_data:
@@ -145,7 +151,7 @@ async def confirm_purchase(callback: CallbackQuery, locale: Locale):
         prices = "Rate not found"
     await callback.message.edit_text(
         f"{confirm_purchase_locale}\n\n{prices}",
-        reply_markup=confirm_pay(locale,rate_number,months),
+        reply_markup=confirm_pay(locale, rate_number, months),
     )
 
 
@@ -154,35 +160,40 @@ async def show_sub(callback: CallbackQuery, remnawave: RemnawaveSDK, locale: Loc
     user = UserManager(remnawave)
     ans = await user.get_subscription(str(callback.from_user.id))
     logger.info(f"subscrption get from api:{ans}")
-    answer = locale.get('sub_list')
+    answer = locale.get("sub_list")
     usr = UserRequests()
     uid = await usr.get_user_by_telegram_id(callback.from_user.id)
     uid = uid.id
     try:
         await callback.answer()
-        await callback.message.edit_text(answer,reply_markup=await build_subscriptions_keyboard(ans,uid=uid))
+        await callback.message.edit_text(
+            answer, reply_markup=await build_subscriptions_keyboard(ans, uid=uid)
+        )
     except Exception as e:
         logger.error(f"err: {e}")
 
+
 @user_router.callback_query(F.data.startswith("sub_info:"))
-async def show_subscription_info(callback: CallbackQuery, locale: Locale, remnawave: RemnawaveSDK):
+async def show_subscription_info(
+    callback: CallbackQuery, locale: Locale, remnawave: RemnawaveSDK
+):
     await callback.answer()
     data_parts = callback.data.split(":")
     subid = int(data_parts[1])
     raw_status = data_parts[2]
-    used_gb = data_parts[3] 
+    used_gb = data_parts[3]
     limit_gb = data_parts[4]
-        
+
     rq = SublinkRequests()
     sub = await rq.get_sublink_by_id(subid)
     expire_at = sub.expires_at
 
     status_map = {
-            "ACTIVE": f"🟢 {locale.get('active')}", 
-            "EXPIRED": f"🟡 {locale.get('expired')}",
-            "LIMITED": f"🟡 {locale.get('limited')}",
-            "DISABLED": f"🔴 {locale.get('disabled')}"
-        }        
+        "ACTIVE": f"🟢 {locale.get('active')}",
+        "EXPIRED": f"🟡 {locale.get('expired')}",
+        "LIMITED": f"🟡 {locale.get('limited')}",
+        "DISABLED": f"🔴 {locale.get('disabled')}",
+    }
     expire_date = expire_at.strftime("%d.%m.%Y %H:%M")
     status = status_map.get(raw_status)
     info_text = f"""📊 <b>{locale.get('subscription')}</b>
@@ -193,9 +204,11 @@ async def show_subscription_info(callback: CallbackQuery, locale: Locale, remnaw
 🔗 <b>{locale.get('sub_url')}:</b>
 <code>{sub.link}</code>"""
 
+    await callback.message.answer(
+        info_text, reply_markup=await build_subscription_detail_keyboard(sub.link)
+    )
 
-    await callback.message.answer(info_text,reply_markup=await build_subscription_detail_keyboard(sub.link))
-     
+
 @user_router.callback_query(F.data == "show_balance")
 async def show_balance(callback: CallbackQuery, locale: Locale):
     await callback.answer()
@@ -213,8 +226,9 @@ async def choose_pay_type(callback: CallbackQuery, locale: Locale):
         locale.get("choose_payment"), reply_markup=payment_methods_kb(locale)
     )
 
+
 @user_router.callback_query(F.data.startswith("pay_rate:"))
-async def pay_rate(callback: CallbackQuery,locale: Locale,remnawave: RemnawaveSDK):
+async def pay_rate(callback: CallbackQuery, locale: Locale, remnawave: RemnawaveSDK):
     await callback.answer()
     rq = UserRequests()
     rt = RateConfig()
@@ -224,22 +238,26 @@ async def pay_rate(callback: CallbackQuery,locale: Locale,remnawave: RemnawaveSD
     months = callback.data.split(":")[2]
     usr = await rq.get_user_by_telegram_id(callback.from_user.id)
     rate_data = rt.get_rate_by_number(rate_number)
-    value = Decimal(str(rate_data['value']))
+    value = Decimal(str(rate_data["value"]))
     limit = int(rate_data["limit"])
     limit_bytes = limit * 1024**3
 
     if usr.balance >= value:
-        await rq.update_user(user_id=usr.id,balance=usr.balance-value)
-        sub = await submanager.create_user(callback.from_user.id,months,limit_bytes)
+        await rq.update_user(user_id=usr.id, balance=usr.balance - value)
+        sub = await submanager.create_user(callback.from_user.id, months, limit_bytes)
         await sb.create_sublink(
             link=sub.subscription_url,
             expires_at=sub.expire_at,
             username=sub.username,
             user_id=usr.id,
-            limit_gb=sub.traffic_limit_bytes/1024**3,
-            status=sub.status)
-        logger.info(f'sublink created:{sub.subscription_url}')
-        await callback.message.answer(f'{locale.get("sub_bought")}\n{locale.get("new_ballance")}{usr.balance-value}\n{locale.get("sub_alrady_in_subs")}',callback_data=sub_kb(locale))
+            limit_gb=sub.traffic_limit_bytes / 1024**3,
+            status=sub.status,
+        )
+        logger.info(f"sublink created:{sub.subscription_url}")
+        await callback.message.answer(
+            f'{locale.get("sub_bought")}\n{locale.get("new_ballance")}{usr.balance-value}\n{locale.get("sub_alrady_in_subs")}',
+            callback_data=sub_kb(locale),
+        )
 
     else:
         await callback.message.answer(f'{locale.get("not_enough_money")}:{usr.balance}')
@@ -334,3 +352,4 @@ async def show_refs(callback: CallbackQuery, locale: Locale, **kwargs):
     except Exception as e:
         logger.debug(e)
     await callback.message.answer(ans)
+

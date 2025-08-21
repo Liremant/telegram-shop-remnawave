@@ -6,6 +6,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from config.locale import Locale
 import database.req as rq
 
+
 def back_kb(locale):
     buttons = [
         InlineKeyboardButton(
@@ -41,8 +42,11 @@ def main_menu_kb(locale):
 
 
 def sub_kb(locale):
-    bttns = [[InlineKeyboardButton(text=locale.get("show_sub"), callback_data="show_sub")]]
+    bttns = [
+        [InlineKeyboardButton(text=locale.get("show_sub"), callback_data="show_sub")]
+    ]
     return InlineKeyboardMarkup(inline_keyboard=bttns)
+
 
 def topup_balance(locale):
     buttons = [
@@ -221,13 +225,16 @@ def crypto_button(locale, pay_link):
     )
     return keyboard
 
-def confirm_pay(locale,rate_id,months):
+
+def confirm_pay(locale, rate_id, months):
     buttons = [
-        [InlineKeyboardButton(text=locale.get("pay"), callback_data=f"pay_rate:{rate_id}:{months}")]
+        [
+            InlineKeyboardButton(
+                text=locale.get("pay"), callback_data=f"pay_rate:{rate_id}:{months}"
+            )
+        ]
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
-
-
 
 
 def rates_kb_dict_locale(
@@ -297,10 +304,13 @@ def show_months(rate_id, locale):
     )
     return kb
 
-async def build_subscriptions_keyboard(user_response,uid):
+
+async def build_subscriptions_keyboard(user_response, uid):
     builder = InlineKeyboardBuilder()
     sublink = rq.SublinkRequests()
-    subscriptions = user_response.root if hasattr(user_response, 'root') else user_response
+    subscriptions = (
+        user_response.root if hasattr(user_response, "root") else user_response
+    )
     userreq = rq.UserRequests()
     usr = await userreq.get_user_by_id(uid)
     user_lang = usr.locale
@@ -315,20 +325,25 @@ async def build_subscriptions_keyboard(user_response,uid):
         )
         status_emoji = "🟢" if subscription.status.value == "ACTIVE" else "🔴"
         button_text = f"{status_emoji} {used_gb}/{limit_gb} {locale.get('GB')}"
-        
 
         sub = await sublink.get_sublink_by_link(subscription.subscription_url)
         print(f"Looking for: {subscription.subscription_url}")
         print(f"Found sub: {sub}")
         if sub:
-            await sublink.update_sublink(sublink_id=sub.id, used_gb=used_gb,limit_gb=limit_gb,status=subscription.status.value)
+            await sublink.update_sublink(
+                sublink_id=sub.id,
+                used_gb=used_gb,
+                limit_gb=limit_gb,
+                status=subscription.status.value,
+            )
         else:
-            logging.error('WTF')
-            #sublink.create_sublink(link=subscription.subscription_url,expires_at=subscription.expire_at,user_id=uid,username=subscription.username,rate=)
-        builder.add(InlineKeyboardButton(
-            text=button_text,
-            callback_data = f"sub_info:{sub.id}:{subscription.status.value}:{used_gb}:{limit_gb}:{subscription.expire_at}" 
-        ))
+            logging.error("WTF")
+        builder.add(
+            InlineKeyboardButton(
+                text=button_text,
+                callback_data=f"sub_info:{sub.id}:{subscription.status.value}:{used_gb}:{limit_gb}:{subscription.expire_at}",
+            )
+        )
     total_subs = len(subscriptions)
     if total_subs <= 5:
         builder.adjust(1)
@@ -338,12 +353,12 @@ async def build_subscriptions_keyboard(user_response,uid):
         builder.adjust(3)
     else:
         builder.adjust(4)
-    
+
     return builder.as_markup()
 
 
 async def build_subscription_detail_keyboard(subscription_url):
-    
+
     builder = InlineKeyboardBuilder()
     sublink = rq.SublinkRequests
     sl = await sublink.get_sublink_by_link(subscription_url)
@@ -352,21 +367,11 @@ async def build_subscription_detail_keyboard(subscription_url):
     usr = await userreq.get_user_by_id(uid)
     lang = usr.locale
     locale = Locale(lang)
-    builder.add(InlineKeyboardButton(
-        text=locale.get('extend_sub'),
-        callback_data=f"extend_sub:{sl.id}" 
-    ))
-    
-    builder.add(InlineKeyboardButton(
-        text=locale.get('open_sub'),
-        url=f"{sl.link}"
-    ))
-    
-    builder.add(InlineKeyboardButton(
-        text="◀️ Назад",
-        callback_data="back_to_subs"
-    ))
-    
-    builder.adjust(2, 1) 
-    
+
+    builder.add(InlineKeyboardButton(text=locale.get("open_sub"), url=f"{sl.link}"))
+
+    builder.add(InlineKeyboardButton(text="◀️ Назад", callback_data="back_to_subs"))
+
+    builder.adjust(2, 1)
+
     return builder.as_markup()

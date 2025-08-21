@@ -14,6 +14,8 @@ from handlers.user_handlers import user_router
 from database.db import init_db
 from remnawave import RemnawaveSDK
 
+from api.user_manager import PanelWebhookHandler 
+
 from api.cryptobot import CryptoBotWebhook
 
 dp = Dispatcher()
@@ -54,25 +56,24 @@ async def setup_bot():
     )
 
     dp.workflow_data["bot"] = bot
-    remnawave_token, panel_url = config.get_remnawave_data()
-    remnawave = RemnawaveSDK(base_url=panel_url, token=remnawave_token)
-    if asyncio.iscoroutine(remnawave):
-        remnawave = await remnawave
-    try:
-        dp.workflow_data["remnawave"] = remnawave
-    except Exception:
-        setattr(dp, "remnawave", remnawave)
 
     token, currency = config.get_cryptobot_data()
     cryptobot = CryptoBotWebhook(token, currency, bot)
     dp.workflow_data["cryptobot"] = cryptobot
+    logger.info("cryptobot setup ended")
+
+    remnawave_token, panel_url = config.get_remnawave_data()
+    remnawave = RemnawaveSDK(base_url=panel_url, token=remnawave_token)
+    if asyncio.iscoroutine(remnawave):
+        remnawave = await remnawave
+    dp.workflow_data["remnawave"] = remnawave
+    logger.info("remnawave setup ended")
 
     middleware = LocaleMiddleware()
     dp.include_router(user_router)
     dp.update.outer_middleware(middleware)
     await init_db()
     return bot, config
-
 
 async def cleanup_bot(bot):
     try:
@@ -88,19 +89,39 @@ async def cleanup_bot(bot):
             pass
 
 
+    
 async def run_webhook(bot, config):
     app = web.Application()
 
     cryptobot = dp.workflow_data["cryptobot"]
-    app.add_subapp("/crypto-secret-path", cryptobot.app)
+    remnawave = dp.workflow_data["remnawave"]
+    
+    webhook_handler = PanelWebhookHandler(
+        bot, 
+        remnawave,
+        config.get_remna_secret()
+    )
 
+    webpath,cryptowebhook,remnawavewebhook = config.get_webhook_path()
+
+    logger.info(f"webhook_path: {webpath}")
+    logger.info(f"crypto path will be: {webpath}{cryptowebhook}")
+    logger.info(f"panel path will be:{webpath}{remnawavewebhook}")
+    app.add_subapp(f"{webpath}{cryptowebhook}", cryptobot.app)
+    
+    async def panel_webhook_route(request):
+        return await webhook_handler.handle_webhook(request)
+    
+    app.router.add_post(f"{webpath}{remnawavewebhook}", panel_webhook_route)
+    
     SimpleRequestHandler(
         dispatcher=dp, bot=bot, secret_token=config.get_webhook_secret()
-    ).register(app, path=config.get_webhook_path())
+    ).register(app, path=webpath)
+
 
     setup_application(app, dp, bot=bot)
 
-    webhook_url = f"{config.get_webhook_url()}{config.get_webhook_path()}"
+    webhook_url = f"{config.get_webhook_url()}{webpath}"
     await bot.set_webhook(
         url=webhook_url,
         allowed_updates=dp.resolve_used_update_types(),

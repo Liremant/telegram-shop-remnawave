@@ -32,20 +32,24 @@ class EnvConfig:
 
         return token, currency
 
-    def get_use_webhook(self) -> bool:
-        return os.getenv("USE_WEBHOOK", "false").lower() == "true"
-
     def get_webhook_url(self) -> str:
         url = os.getenv("WEBHOOK_URL", "")
         if not url and self.get_use_webhook():
             raise ValueError("WEBHOOK_URL must be set when using webhooks")
         return url
+    
 
     def get_webhook_path(self) -> str:
-        return os.getenv("WEBHOOK_PATH", "/webhook")
+        crypto = os.getenv("CRYPTOBOT_WEBHOOK_PATH")
+        remnawave = os.getenv("REMNAWAVE_WEBHOOK_PATH")
+        webpath = os.getenv("WEBHOOK_PATH", "/webhook")
+        return webpath,crypto,remnawave
 
     def get_webhook_secret(self) -> str:
         return os.getenv("WEBHOOK_SECRET", "your_secret_token_here")
+
+    def get_remna_secret(self):
+        return os.getenv("REMNAWAVE_WEBHOOK_SECRET_HEADER")
 
     def get_webhook_host(self) -> str:
         return os.getenv("WEBHOOK_HOST", "0.0.0.0")

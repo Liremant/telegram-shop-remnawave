@@ -52,10 +52,14 @@ class Sublink(Base, TimestampMixin):
     link: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     username: Mapped[str] = mapped_column(String(500))
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True)
-    limit_gb: Mapped[Decimal] = mapped_column(DECIMAL(precision=10,scale=2))
-    used_gb: Mapped[Decimal] = mapped_column(DECIMAL(precision=10,scale=2),default=Decimal("0.00"))
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    limit_gb: Mapped[Decimal] = mapped_column(DECIMAL(precision=10, scale=2))
+    used_gb: Mapped[Decimal] = mapped_column(
+        DECIMAL(precision=10, scale=2), default=Decimal("0.00")
+    )
     status: Mapped[str] = mapped_column(String(50))
+
+
 class Invoice(Base, TimestampMixin):
     __tablename__ = "invoices"
 
@@ -76,10 +80,10 @@ class ReferralLink(Base, TimestampMixin):
     user_full_name: Mapped[str] = mapped_column(String(200))
 
 
-
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
 
 @asynccontextmanager
 async def get_session() -> AsyncGenerator[AsyncSession, None]:

@@ -22,7 +22,7 @@ class CryptoBotWebhook:
             self.myfiat = self.currency
         self.bot = bot
         self.cp = CryptoPay(
-            token, webhook_manager=AiohttpManager(self.app, "/handler"), network=TESTNET
+            token, webhook_manager=AiohttpManager(self.app,""), network=TESTNET
         )
         self._setup_handlers()
         logger.info("cryptobot setup ended")
