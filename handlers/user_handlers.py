@@ -255,7 +255,7 @@ async def pay_rate(callback: CallbackQuery, locale: Locale, remnawave: Remnawave
         )
         logger.info(f"sublink created:{sub.subscription_url}")
         await callback.message.answer(
-            f'{locale.get("sub_bought")}\n{locale.get("new_ballance")}{usr.balance-value}\n{locale.get("sub_alrady_in_subs")}',
+            f'{locale.get("sub_bought")}\n{locale.get("new_balance")}{usr.balance-value}\n{locale.get("sub_already_in_subs")}',
             callback_data=sub_kb(locale),
         )
 

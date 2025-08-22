@@ -23,10 +23,8 @@ def back_kb(locale):
 
 def main_menu_kb(locale):
     buttons = [
-        [
-            InlineKeyboardButton(text=locale.get("buy_sub"), callback_data="buy_sub"),
-            InlineKeyboardButton(text=locale.get("show_sub"), callback_data="show_sub"),
-        ],
+        [InlineKeyboardButton(text=locale.get("buy_sub"), callback_data="buy_sub")],
+        [InlineKeyboardButton(text=locale.get("show_sub"), callback_data="show_sub"),],
         [
             InlineKeyboardButton(
                 text=locale.get("show_balance"), callback_data="show_balance"
@@ -34,7 +32,7 @@ def main_menu_kb(locale):
         ],
         [
             InlineKeyboardButton(
-                text=locale.get("refferal_button"), callback_data="show_refferals"
+                text=locale.get("referral_button"), callback_data="show_refferals"
             )
         ],
     ]

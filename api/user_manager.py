@@ -151,7 +151,7 @@ class PanelWebhookHandler:
         
         message = (
             f"⚠️ <b>{locale.get('sub_expired')}</b>\n\n"
-            f"Дата истечения: {expire_date}\n"
+            f"{locale.get('expiry_date')}{expire_date}\n"
             f"{locale.get('renew_subscription')}"
         )
         await self._send_notification(tg_id, message)
