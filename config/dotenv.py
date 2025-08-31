@@ -29,9 +29,12 @@ class EnvConfig:
     def get_cryptobot_data(self):
         token = os.getenv("CRYPTOBOT_TOKEN")
         currency = os.getenv("RATE_CURRENCY", "RUB")
-
         return token, currency
-
+    
+    def get_cryptobot_secret(self):
+        secret_path = os.getenv("CRYPTOBOT_SECRET_PATH")
+        return secret_path
+        
     def get_webhook_url(self) -> str:
         url = os.getenv("WEBHOOK_URL", "")
         if not url and self.get_use_webhook():
@@ -63,6 +66,11 @@ class EnvConfig:
     def get_ref_percent(self):
         return int(os.getenv("REF_PERCENT"))
 
+    def get_tribute_secret(self) -> Optional[str]:
+        return os.getenv("TRIBUTE_API_KEY")
+    
+    def get_tribute_webhook_path(self) -> str:
+        return os.getenv("TRIBUTE_WEBHOOK_PATH", "/tribute")
 
 class GetDatabase:
     @staticmethod
@@ -84,7 +92,7 @@ class GetDatabase:
         host = os.getenv("PSQL_HOST", "localhost")
         port = os.getenv("PSQL_PORT", "5432")
         db = os.getenv("PSQL_DB", "users")
-        return passwd, user, host, port, db
+        return passwd, user, host, port, db 
 
 
 class RateConfig:

@@ -14,9 +14,9 @@ from handlers.user_handlers import user_router
 from database.db import init_db
 from remnawave import RemnawaveSDK
 
-from api.user_manager import PanelWebhookHandler 
-
+from api.user_manager import PanelWebhookHandler
 from api.cryptobot import CryptoBotWebhook
+from api.tribute import TributeWebhookHandler
 
 dp = Dispatcher()
 
@@ -75,6 +75,7 @@ async def setup_bot():
     await init_db()
     return bot, config
 
+
 async def cleanup_bot(bot):
     try:
         await bot.delete_webhook()
@@ -89,35 +90,35 @@ async def cleanup_bot(bot):
             pass
 
 
-    
 async def run_webhook(bot, config):
     app = web.Application()
 
     cryptobot = dp.workflow_data["cryptobot"]
     remnawave = dp.workflow_data["remnawave"]
-    
-    webhook_handler = PanelWebhookHandler(
-        bot, 
-        remnawave,
-        config.get_remna_secret()
-    )
 
-    webpath,cryptowebhook,remnawavewebhook = config.get_webhook_path()
+    webhook_handler = PanelWebhookHandler(bot, remnawave, config.get_remna_secret())
+
+    tribute_handler = TributeWebhookHandler(
+        bot=bot, remnawave_sdk=remnawave, secret_key=config.get_tribute_secret()
+    )
+    webpath, cryptowebhook, remnawavewebhook = config.get_webhook_path()
+    tribute_webhook = config.get_tribute_webhook_path()
 
     logger.info(f"webhook_path: {webpath}")
     logger.info(f"crypto path will be: {webpath}{cryptowebhook}")
     logger.info(f"panel path will be:{webpath}{remnawavewebhook}")
+    logger.info(f"tribute path will be: {webpath}{tribute_webhook}")
     app.add_subapp(f"{webpath}{cryptowebhook}", cryptobot.app)
-    
+    app.add_subapp(f"{webpath}{cryptowebhook}", cryptobot.app)
+
     async def panel_webhook_route(request):
         return await webhook_handler.handle_webhook(request)
-    
+
     app.router.add_post(f"{webpath}{remnawavewebhook}", panel_webhook_route)
-    
+    app.router.add_post(f"{webpath}{tribute_webhook}", tribute_handler.handle_webhook)
     SimpleRequestHandler(
         dispatcher=dp, bot=bot, secret_token=config.get_webhook_secret()
     ).register(app, path=webpath)
-
 
     setup_application(app, dp, bot=bot)
 

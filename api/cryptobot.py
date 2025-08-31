@@ -16,13 +16,16 @@ class CryptoBotWebhook:
     def __init__(self, token: str, currency: str, bot):
         self.app = Application()
         self.currency = currency
+        self.env = EnvConfig()
         if self.currency == "RUB":
             self.myfiat = "₽"
         else:
             self.myfiat = self.currency
         self.bot = bot
         self.cp = CryptoPay(
-            token, webhook_manager=AiohttpManager(self.app,""), network=TESTNET
+            token,
+            webhook_manager=AiohttpManager(self.app, self.env.get_cryptobot_secret()),
+            network=TESTNET,
         )
         self._setup_handlers()
         logger.info("cryptobot setup ended")

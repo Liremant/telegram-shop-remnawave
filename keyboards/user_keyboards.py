@@ -1,10 +1,12 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from config.dotenv import RateConfig
-from typing import Optional, Dict
 import logging
+from typing import Dict, Optional
+
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from config.locale import Locale
+
 import database.req as rq
+from config.dotenv import RateConfig
+from config.locale import Locale
 
 
 def back_kb(locale):
@@ -24,7 +26,9 @@ def back_kb(locale):
 def main_menu_kb(locale):
     buttons = [
         [InlineKeyboardButton(text=locale.get("buy_sub"), callback_data="buy_sub")],
-        [InlineKeyboardButton(text=locale.get("show_sub"), callback_data="show_sub"),],
+        [
+            InlineKeyboardButton(text=locale.get("show_sub"), callback_data="show_sub"),
+        ],
         [
             InlineKeyboardButton(
                 text=locale.get("show_balance"), callback_data="show_balance"
@@ -80,6 +84,7 @@ def rates_kb(locale, config: Optional[RateConfig] = None):
         return InlineKeyboardMarkup(inline_keyboard=buttons)
 
     except ValueError as e:
+        logging.error(e)
         error_button = InlineKeyboardButton(
             text=(
                 locale.get("error_loading_rates")

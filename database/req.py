@@ -4,7 +4,23 @@ from typing import Optional, List
 from database.db import User, Sublink, Invoice, ReferralLink, get_session
 
 
-class UserRequests:
+class BaseReqests:
+    @staticmethod
+    async def get_user_by_id(user_id: int) -> Optional[User]:
+        async with get_session() as session:
+            stmt = select(User).where(User.id == user_id)
+            result = await session.execute(stmt)
+            return result.scalars().first()
+
+    @staticmethod
+    async def get_user_by_telegram_id(telegram_id: int) -> Optional[User]:
+        async with get_session() as session:
+            stmt = select(User).where(User.telegram_id == telegram_id)
+            result = await session.execute(stmt)
+            return result.scalars().first()
+
+
+class UserRequests(BaseReqests):
     @staticmethod
     async def create_user(
         username: str, telegram_id: int, name: str, locale: str
@@ -20,28 +36,7 @@ class UserRequests:
             session.add(user)
             await session.commit()
             await session.refresh(user)
-            return True
-
-    @staticmethod
-    async def get_user_by_id(user_id: int) -> Optional[User]:
-        async with get_session() as session:
-            stmt = select(User).where(User.id == user_id)
-            result = await session.execute(stmt)
-            return result.scalars().first()
-
-    @staticmethod
-    async def get_user_by_telegram_id(telegram_id: int) -> Optional[User]:
-        async with get_session() as session:
-            stmt = select(User).where(User.telegram_id == telegram_id)
-            result = await session.execute(stmt)
-            return result.scalars().first()
-
-    @staticmethod
-    async def get_all_users() -> List[User]:
-        async with get_session() as session:
-            stmt = select(User)
-            result = await session.execute(stmt)
-            return result.scalars().all()
+            return user
 
     @staticmethod
     async def update_user(user_id: int, **kwargs) -> Optional[User]:
@@ -52,7 +47,7 @@ class UserRequests:
             return await UserRequests.get_user_by_id(user_id)
 
 
-class SublinkRequests:
+class SublinkRequests(BaseReqests):
     @staticmethod
     async def create_sublink(
         link: str, expires_at: datetime, username: str, user_id: int, limit_gb, status
@@ -101,7 +96,7 @@ class SublinkRequests:
             return result.scalars().first()
 
 
-class InvoiceRequests:
+class InvoiceRequests(BaseReqests):
     @staticmethod
     async def create_invoice(
         status: str, user_id: int, platform: str, amount
@@ -138,25 +133,25 @@ class InvoiceRequests:
             return await InvoiceRequests.get_invoice_by_id(invoice_id)
 
 
-class ReferralLinkRequests:
+class ReferralLinkRequests(BaseReqests):
     @staticmethod
-    async def create_referral_link(
+    async def create_referral(
         owner_id: int,
         user_id: int,
         user_tgid,
         user_full_name,
     ) -> ReferralLink:
         async with get_session() as session:
-            referral_link = ReferralLink(
+            referral = ReferralLink(
                 owner_id=owner_id,
                 user_id=user_id,
                 user_tgid=user_tgid,
                 user_full_name=user_full_name,
             )
-            session.add(referral_link)
+            session.add(referral)
             await session.commit()
-            await session.refresh(referral_link)
-            return referral_link
+            await session.refresh(referral)
+            return referral
 
     @staticmethod
     async def get_referral_link_by_id(referral_id: int) -> Optional[ReferralLink]:

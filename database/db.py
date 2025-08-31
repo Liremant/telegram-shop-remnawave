@@ -6,7 +6,7 @@ from sqlalchemy.orm import (
     Mapped,
     mapped_column,
 )
-from sqlalchemy import String, DateTime, func, ForeignKey, Integer, DECIMAL, BigInteger
+from sqlalchemy import String, DateTime, func, ForeignKey, DECIMAL, BigInteger
 from datetime import datetime
 from dotenv import load_dotenv
 import os

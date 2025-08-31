@@ -12,6 +12,7 @@ from keyboards.user_keyboards import (
     build_subscriptions_keyboard,
     confirm_pay,
     sub_kb,
+    back_kb,
 )
 from config.locale import Locale
 from config.dotenv import RateConfig, EnvConfig
@@ -22,6 +23,7 @@ from database.req import (
     ReferralLinkRequests,
     SublinkRequests,
 )
+from services.user_service import UserService, ReferralService, PaymentService
 from api.user_manager import UserManager
 from api.cryptobot import CryptoBotWebhook
 from remnawave import RemnawaveSDK
@@ -44,55 +46,26 @@ async def start(message: Message, locale: Locale, command: CommandObject, **kwar
     logger.info(
         f"user {message.from_user.username} started bot. id={message.from_user.id}"
     )
-    client = UserRequests
-    tgid = message.from_user.id
-    name = message.from_user.full_name
-    if message.from_user.username:
-        username = message.from_user.username
-        user = await client.create_user(
-            username=username,
-            name=name,
-            telegram_id=tgid,
-            locale=message.from_user.language_code,
+    client = UserService()
+    status, user = await client.create_or_get_user(
+        name=message.from_user.full_name,
+        telegram_id=message.from_user.id,
+        userlang=message.from_user.language_code,
+        username=message.from_user.username,
+    )
+    logger.info(f"status:{status},user:{user}")
+    if status and command.args:
+        ref = ReferralService()
+        logger.info(f"{command.args}")
+        await ref.create_or_get_referral(
+            cryptid=command.args,
+            uid=user.id,
+            full_name=message.from_user.full_name,
+            locale=locale,
+            username=message.from_user.username,
+            user_tgid=message.from_user.id,
+            bot=kwargs.get("bot"),
         )
-    else:
-        user = await client.create_user(
-            name=message.from_user.full_name,
-            telegram_id=message.from_user.id,
-            locale=message.from_user.language_code,
-        )
-    if user:
-        logger.info("user added into db")
-        if command.args:
-            crypted_id = command.args
-            ownref_tgid = base58.b58decode_int(crypted_id)
-            ownref = await client.get_user_by_telegram_id(ownref_tgid)
-            bot = kwargs.get("bot")
-            ref = ReferralLinkRequests
-            usr = await client.get_user_by_telegram_id(message.from_user.id)
-            user_id = usr.id
-            ownref_user_id = ownref.id
-            refferal = await ref.create_referral_link(
-                owner_id=ownref_user_id,
-                user_id=user_id,
-                user_tgid=tgid,
-                user_full_name=name,
-            )
-            if refferal:
-                if username:
-                    await bot.send_message(
-                        chat_id=ownref_tgid,
-                        text=f"{locale.get('referral_connected')}\n{name} ",
-                    )
-                else:
-                    await bot.send_message(
-                        chat_id=ownref_tgid,
-                        text=f"{locale.get('referral_connected')}\n• {name}• {username} ",
-                    )
-
-    else:
-        logger.info("user already in db")
-
     await message.answer(greeting, reply_markup=main_menu_kb(locale))
 
 
@@ -114,7 +87,7 @@ async def restart(callback: CallbackQuery, locale: Locale):
         logger.info("user added into db")
     else:
         logger.info("user already in db")
-    await callback.message.answer(greeting, reply_markup=main_menu_kb(locale))
+    await callback.message.edit_text(greeting, reply_markup=main_menu_kb(locale))
 
 
 @user_router.callback_query(F.data == "buy_sub")
@@ -157,20 +130,23 @@ async def confirm_purchase(callback: CallbackQuery, locale: Locale):
 
 @user_router.callback_query(F.data == "show_sub")
 async def show_sub(callback: CallbackQuery, remnawave: RemnawaveSDK, locale: Locale):
+    await callback.answer()
     user = UserManager(remnawave)
-    ans = await user.get_subscription(str(callback.from_user.id))
-    logger.info(f"subscrption get from api:{ans}")
-    answer = locale.get("sub_list")
-    usr = UserRequests()
-    uid = await usr.get_user_by_telegram_id(callback.from_user.id)
-    uid = uid.id
     try:
-        await callback.answer()
+        ans = await user.get_subscription(str(callback.from_user.id))
+        logger.info(f"subscrption get from api:{ans}")
+        answer = locale.get("sub_list")
+        usr = UserRequests()
+        uid = await usr.get_user_by_telegram_id(callback.from_user.id)
+        uid = uid.id
+
         await callback.message.edit_text(
             answer, reply_markup=await build_subscriptions_keyboard(ans, uid=uid)
         )
     except Exception as e:
+        ans = f'{locale.get("no_sub")}'
         logger.error(f"err: {e}")
+        await callback.message.edit_text(ans, reply_markup=back_kb(locale))
 
 
 @user_router.callback_query(F.data.startswith("sub_info:"))
@@ -230,7 +206,11 @@ async def choose_pay_type(callback: CallbackQuery, locale: Locale):
 @user_router.callback_query(F.data.startswith("pay_rate:"))
 async def pay_rate(callback: CallbackQuery, locale: Locale, remnawave: RemnawaveSDK):
     await callback.answer()
-    rq = UserRequests()
+    ps = PaymentService()
+    payment, ballance = await ps.service_pay_rate(
+        tgid=callback.from_user.id, callbackdata=callback.data
+    )
+    """     rq = UserRequests()
     rt = RateConfig()
     sb = SublinkRequests()
     submanager = UserManager(remnawave)
@@ -240,9 +220,9 @@ async def pay_rate(callback: CallbackQuery, locale: Locale, remnawave: Remnawave
     rate_data = rt.get_rate_by_number(rate_number)
     value = Decimal(str(rate_data["value"]))
     limit = int(rate_data["limit"])
-    limit_bytes = limit * 1024**3
+    limit_bytes = limit * 1024**3 """
 
-    if usr.balance >= value:
+    """ if usr.balance >= value:
         await rq.update_user(user_id=usr.id, balance=usr.balance - value)
         sub = await submanager.create_user(callback.from_user.id, months, limit_bytes)
         await sb.create_sublink(
@@ -254,13 +234,20 @@ async def pay_rate(callback: CallbackQuery, locale: Locale, remnawave: Remnawave
             status=sub.status,
         )
         logger.info(f"sublink created:{sub.subscription_url}")
-        await callback.message.answer(
-            f'{locale.get("sub_bought")}\n{locale.get("new_balance")}{usr.balance-value}\n{locale.get("sub_already_in_subs")}',
-            callback_data=sub_kb(locale),
+
         )
 
     else:
-        await callback.message.answer(f'{locale.get("not_enough_money")}:{usr.balance}')
+        await callback.message.edit_text(
+            f'{locale.get("not_enough_money")}:{usr.balance}'
+    ) """
+    if payment:
+        await callback.message.edit_text(
+            f'{locale.get("sub_bought")}\n{locale.get("new_balance")}{ballance}\n{locale.get("sub_already_in_subs")}',
+            callback_data=sub_kb(locale),
+        )
+    else:
+        await callback.message.edit_text(f'{locale.get("not_enough_money")}:{ballance}')
 
 
 @user_router.callback_query(F.data == "pay_crypto")
@@ -351,5 +338,4 @@ async def show_refs(callback: CallbackQuery, locale: Locale, **kwargs):
             """
     except Exception as e:
         logger.debug(e)
-    await callback.message.answer(ans)
-
+    await callback.message.edit_text(ans)
